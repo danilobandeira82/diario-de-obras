@@ -17,7 +17,7 @@ Dados necessários: o **código da empresa** (o mesmo da linha `CODIGO` do scrip
    ou "você precisa de acesso", a implantação não está como **Qualquer pessoa**.
 3. No app, em cada aparelho: ⚙ Configurações → Nuvem da construtora → **Testar conexão**. Todas as linhas
    devem começar com ✔. Anote os tempos (ms) e o número de registros. Depois toque em **Baixar tudo de novo**
-   (a versão 4 aproveita para arrumar o que versões antigas tenham espalhado em pastas duplicadas no Drive).
+   (o servidor aproveita para arrumar o que versões antigas tenham espalhado em pastas duplicadas no Drive).
 
 ## 1. Aparelho A (uma janela normal do navegador)
 
