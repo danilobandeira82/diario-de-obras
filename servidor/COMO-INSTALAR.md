@@ -50,6 +50,12 @@ Mude a linha `CODIGO` no script → **Implantar → Gerenciar implantações →
 O endereço continua o mesmo. Depois, em cada aparelho: Configurações → Desconectar → conectar de novo com o código novo
 (ou mande um convite novo).
 
+## Pastas duplicadas no Drive?
+
+Versões antigas do servidor (1 a 3) podiam criar pastas repetidas ("registros (não mexer)", "Obras — fotos e documentos",
+pastas de obra). A versão 4 não cria mais e, ao receber "Baixar tudo de novo" de um aparelho, junta o que ficou
+espalhado. Não apague as duplicatas antes disso; depois, pode deixar como está ou mover o conteúdo à mão.
+
 ## Atualizar o servidor no futuro
 
 Mesmo caminho: cole o `Codigo.gs` novo, mantenha a sua linha `CODIGO`,

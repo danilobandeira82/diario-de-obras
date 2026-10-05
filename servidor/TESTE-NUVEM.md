@@ -9,12 +9,15 @@ Dados necessários: o **código da empresa** (o mesmo da linha `CODIGO` do scrip
 
 ## 0. Servidor atualizado?
 
-1. Abra `https://script.google.com`, projeto **Diário de Obras**. Confira que a primeira linha de versão é
-   `const VERSAO_SERVIDOR = 3;`. Se for menor, cole o `Codigo.gs` novo (mantendo a linha `CODIGO`),
+1. Abra `https://script.google.com`, projeto **Diário de Obras**. Confira que a linha de versão é
+   `const VERSAO_SERVIDOR = 4;`. Se for menor, cole o `Codigo.gs` novo (mantendo a linha `CODIGO`),
    salve e faça **Implantar → Gerenciar implantações → ✏ → Nova versão → Implantar**.
 2. Abra o endereço `/exec` do app da Web no navegador. Deve aparecer um texto JSON com
-   `"versao":3` e `"Servidor do Diário de Obras funcionando."`. Se aparecer uma página de login do Google
+   `"versao":4` e `"Servidor do Diário de Obras funcionando."`. Se aparecer uma página de login do Google
    ou "você precisa de acesso", a implantação não está como **Qualquer pessoa**.
+3. No app, em cada aparelho: ⚙ Configurações → Nuvem da construtora → **Testar conexão**. Todas as linhas
+   devem começar com ✔. Anote os tempos (ms) e o número de registros. Depois toque em **Baixar tudo de novo**
+   (a versão 4 aproveita para arrumar o que versões antigas tenham espalhado em pastas duplicadas no Drive).
 
 ## 1. Aparelho A (uma janela normal do navegador)
 
@@ -53,4 +56,5 @@ Dados necessários: o **código da empresa** (o mesmo da linha `CODIGO` do scrip
 ## Resultado
 
 Se todos os passos deram o esperado, a nuvem está funcionando. Caso contrário, anote o passo que falhou,
-o texto exato de qualquer mensagem do app e um print da tela de ⚙ Configurações → Nuvem da construtora.
+o texto exato de qualquer mensagem do app e, em ⚙ Configurações → Nuvem da construtora, transcreva a faixa de
+status, "Última sincronização", o resultado de **Testar conexão** e as linhas de **Últimas conversas com o servidor**.

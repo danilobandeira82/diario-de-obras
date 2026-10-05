@@ -353,13 +353,17 @@ function cartaoNuvem() {
       '<p style="font-size:14px;margin:0 0 4px"><b>Conectado como:</b> ' + esc(n.nome) + '</p>' +
       '<p style="font-size:14px;margin:0 0 4px"><b>Última sincronização:</b> ' + (n.ultimaOk ? br(isoDe(new Date(n.ultimaOk))) + ' às ' +
         new Date(n.ultimaOk).toTimeString().slice(0, 5) : 'ainda não') + '</p>' +
-      (Nuvem.versaoServidor && Nuvem.versaoServidor < 2 ? '<div class="aviso a" style="margin:8px 0">' + ic('alerta') + '<div><b>Atualize o servidor no Google</b> ' +
+      (Nuvem.versaoServidor && Nuvem.versaoServidor < 4 ? '<div class="aviso a" style="margin:8px 0">' + ic('alerta') + '<div><b>Atualize o servidor no Google</b> ' +
         '(cole o Codigo.gs novo e publique uma nova versão) — a versão antiga pode demorar a mostrar obras novas nos outros aparelhos.</div></div>' : '') +
       '<p style="font-size:13px;color:var(--tinta2);margin:0 0 12px;word-break:break-all">' + esc(n.url.slice(0, 60)) + '…</p>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
       '<button class="btn pri" data-a="nuvemSinc">' + ic('subir') + 'Sincronizar agora</button>' +
       '<button class="btn sec" data-a="nuvemConvite">' + ic('copiar') + 'Convite p/ engenheiro</button></div>' +
       '<p class="dica">O convite é um link: o engenheiro abre no celular ou no computador, digita o nome e pronto.</p>' +
+      '<button class="btn sec cheio" style="margin-top:9px" data-a="nuvemTestar">Testar conexão</button><div id="nuvemTeste"></div>' +
+      (Nuvem.log.length ? '<details style="margin-top:10px"><summary style="font-size:13.5px;color:var(--tinta2)">Últimas conversas com o servidor</summary>' +
+        '<div style="font-size:12px;font-family:monospace;line-height:1.5;margin-top:6px">' + Nuvem.log.slice(0, 15).map(l =>
+          new Date(l.t).toTimeString().slice(0, 8) + ' ' + (l.ok ? '✔' : '✘') + ' ' + l.acao + ' ' + l.ms + 'ms ' + esc(l.info)).join('<br>') + '</div></details>' : '') +
       '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px"><button class="btn fant" data-a="nuvemTudo">Baixar tudo de novo</button>' +
       '<button class="btn fant" style="color:var(--erro)" data-a="nuvemSair">Desconectar este aparelho</button></div>';
   } else {

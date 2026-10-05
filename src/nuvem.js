@@ -13,13 +13,14 @@ const Nuvem = {
   cfg: null,              // { url, codigo, nome, desde }
   fila: {},               // 'loja|chave' -> { loja, chave, v }
   rodando: false, estado: 'desligada', erro: '', ultimaOk: 0, baixando: 0, difRelogio: 0,
+  log: [],                // últimas conversas com o servidor (diagnóstico)
   _falhas: {},            // arquivos que ainda não estão no servidor (tenta de novo depois)
 
   carregar() {
     return Promise.all([Banco.ler('config', 'nuvem'), Banco.ler('config', 'fila')]).then(([c, f]) => {
       this.cfg = c || null; this.fila = f || {};
       Banco.aoMudar = (loja, k, apagado) => this.marcar(loja, k, apagado);
-      if (this.ativa()) this.estado = 'ok';
+      if (this.ativa()) { this.estado = 'pendente'; this.ultimaOk = this.cfg.ultimaOk || 0; }
     });
   },
   ativa() { return !!(this.cfg && this.cfg.url && this.cfg.codigo); },
@@ -50,13 +51,21 @@ const Nuvem = {
   chamar(acao, extra) {
     const corpo = JSON.stringify(Object.assign({ codigo: this.cfg.codigo, nome: this.cfg.nome || '', acao }, extra || {}));
     const ctl = window.AbortController ? new AbortController() : null;
-    const tempo = setTimeout(() => ctl && ctl.abort(), 90000);
+    const tempo = setTimeout(() => ctl && ctl.abort(), 120000), t0 = Date.now();
+    const anotar = (ok, info) => { this.log.unshift({ t: Date.now(), acao, ms: Date.now() - t0, ok, info: String(info || '').slice(0, 120) }); this.log = this.log.slice(0, 30); };
     // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
     return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
-      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); this.versaoServidor = j.versao || 1;
+      .then(t => {
+        let j; try { j = JSON.parse(t); } catch (e) { anotar(false, 'resposta não é JSON: ' + t.slice(0, 80)); throw new Error('O servidor respondeu algo inesperado (' + t.replace(/<[^>]+>/g, ' ').trim().slice(0, 60) + '…). Vou tentar de novo.'); }
+        if (!j.ok) { anotar(false, j.erro); throw new Error(j.erro || 'erro no servidor'); }
+        this.versaoServidor = j.versao || 1;
         if (j.agora) this.difRelogio = j.agora - Date.now();     // corrige relógio errado do aparelho
+        anotar(true, (j.itens ? j.itens.length + ' item(ns)' : '') + (j.ms ? ' · servidor ' + j.ms + ' ms' : ''));
         return j; })
+      .catch(e => { if (e && e.name === 'AbortError') { anotar(false, 'sem resposta em 120 s'); throw new Error('O servidor não respondeu em 2 minutos. Vou tentar de novo.'); }
+        if (e && /Failed to fetch|NetworkError|Load failed/.test(e.message)) { anotar(false, 'rede: ' + e.message); throw new Error('Não consegui falar com o servidor (rede). Vou tentar de novo.'); }
+        throw e; })
       .finally(() => clearTimeout(tempo));
   },
 
@@ -74,7 +83,8 @@ const Nuvem = {
       .finally(() => {
         this.rodando = false; this.mostrar();
         if (mudou) this.redesenhar();
-        if (this.pendentes() && this.estado !== 'erro' && this.estado !== 'offline') this.agendar(3000);
+        if (this.estado === 'erro') this.agendar(30000);                                       // tenta de novo em 30 s
+        else if (this.pendentes() && this.estado !== 'offline') this.agendar(3000);
       });
   },
 
@@ -200,6 +210,8 @@ const Nuvem = {
     if (this.estado === 'erro') return 'Não sincronizou: ' + this.erro;
     if (this.rodando) return n ? 'Enviando… faltam ' + n : (this.baixando ? 'Baixando ' + this.baixando + ' arquivo(s)…' : 'Sincronizando…');
     if (n) return n + ' aguardando envio';
+    if (!this.ultimaOk) return 'Ainda não sincronizou';
+    if (Date.now() - this.ultimaOk > 5 * 60000) return 'Última sincronização às ' + new Date(this.ultimaOk).toTimeString().slice(0, 5);
     return 'Tudo salvo na nuvem';
   },
   mostrar() {
@@ -207,7 +219,7 @@ const Nuvem = {
     if (s && s.textContent && s.textContent !== 'Salvando…') s.textContent = this.curto();
     const el = document.getElementById('nuvemStatus'); if (!el) return;
     const t = this.texto(); el.textContent = t;
-    el.className = 'nuvem-status ' + (this.estado === 'erro' ? 'e' : this.estado === 'offline' || this.pendentes() ? 'a' : 'o');
+    el.className = 'nuvem-status ' + (this.estado === 'erro' ? 'e' : this.estado === 'offline' || this.pendentes() || !this.ultimaOk || Date.now() - this.ultimaOk > 5 * 60000 ? 'a' : 'o');
     el.hidden = !t;
   },
   /* versão curta para o canto do cabeçalho do dia */
@@ -216,6 +228,7 @@ const Nuvem = {
     if (this.estado === 'offline') return 'Sem internet · salvo no aparelho';
     if (this.estado === 'erro') return 'Salvo no aparelho · nuvem com erro';
     if (this.rodando || this.pendentes()) return 'Enviando…';
+    if (!this.ultimaOk || Date.now() - this.ultimaOk > 5 * 60000) return 'Salvo no aparelho · nuvem atrasada';
     return 'Salvo na nuvem ✓';
   },
   /* chegou coisa nova de outro aparelho: atualiza a tela se ninguém estiver digitando */
@@ -224,6 +237,19 @@ const Nuvem = {
     if (foco && /INPUT|TEXTAREA/.test(foco.tagName)) { App.redesenharDepois = true; return; }
     if (document.getElementById('folha')) { App.redesenharDepois = true; return; }
     const y = scrollY; render(); scrollTo(0, y);
+  },
+
+  /* teste de conexão com relatório legível */
+  testar() {
+    const t0 = Date.now(), lin = [];
+    return this.chamar('ping').then(j => { lin.push('✔ Servidor respondeu em ' + (Date.now() - t0) + ' ms (versão ' + j.versao + ', ' + (j.registros || 0) + ' registros)');
+      if (j.versao < 4) lin.push('✘ Servidor desatualizado: publique a versão 4 do Codigo.gs');
+      const t1 = Date.now(); return this.chamar('mudancas', { desde: 0, limite: 5 }).then(m => {
+        lin.push('✔ Consulta de alterações em ' + (Date.now() - t1) + ' ms · ' + (m.total != null ? m.total : '?') + ' registros no servidor');
+        lin.push('• Última sincronização completa aqui: ' + (this.ultimaOk ? new Date(this.ultimaOk).toLocaleString('pt-BR') : 'nunca'));
+        lin.push('• Fila deste aparelho: ' + this.pendentes() + ' · relógio: ' + Math.round(this.difRelogio / 1000) + ' s de diferença');
+        return lin; });
+    }).catch(e => { lin.push('✘ ' + e.message); return lin; });
   },
 
   /* ---------- ligar / desligar ---------- */

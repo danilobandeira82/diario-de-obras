@@ -145,6 +145,8 @@ const A = {
     Nuvem.conectar($('#nvUrl').value, $('#nvCod').value, $('#nvNome').value)
       .then(() => { toast('Conectado! Enviando os dados deste aparelho…', 3500); render(); })
       .catch(e => { el.disabled = false; toast(e.message, 5000); }); },
+  nuvemTestar: el => { el.disabled = true; $('#nuvemTeste').innerHTML = '<p class="dica">Testando…</p>';
+    Nuvem.testar().then(lin => { el.disabled = false; $('#nuvemTeste').innerHTML = '<div class="aviso ' + (lin.some(l => l[0] === '✘') ? 'e' : 'o') + '" style="margin-top:8px"><div>' + lin.map(esc).join('<br>') + '</div></div>'; }); },
   nuvemSinc: () => { Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
   nuvemTudo: () => { Nuvem.cfg.desde = 0; Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
   nuvemSair: () => confirmar('Desconectar este aparelho?', 'Os dados continuam no Drive e neste aparelho, mas param de sincronizar aqui.' +
