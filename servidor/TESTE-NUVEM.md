@@ -10,10 +10,10 @@ Dados necessários: o **código da empresa** (o mesmo da linha `CODIGO` do scrip
 ## 0. Servidor atualizado?
 
 1. Abra `https://script.google.com`, projeto **Diário de Obras**. Confira que a linha de versão é
-   `const VERSAO_SERVIDOR = 4;`. Se for menor, cole o `Codigo.gs` novo (mantendo a linha `CODIGO`),
+   `const VERSAO_SERVIDOR = 5;`. Se for menor, cole o `Codigo.gs` novo (mantendo a linha `CODIGO`),
    salve e faça **Implantar → Gerenciar implantações → ✏ → Nova versão → Implantar**.
 2. Abra o endereço `/exec` do app da Web no navegador. Deve aparecer um texto JSON com
-   `"versao":4` e `"Servidor do Diário de Obras funcionando."`. Se aparecer uma página de login do Google
+   `"versao":5` e `"Servidor do Diário de Obras funcionando."`. Se aparecer uma página de login do Google
    ou "você precisa de acesso", a implantação não está como **Qualquer pessoa**.
 3. No app, em cada aparelho: ⚙ Configurações → Nuvem da construtora → **Testar conexão**. Todas as linhas
    devem começar com ✔. Anote os tempos (ms) e o número de registros. Depois toque em **Baixar tudo de novo**
@@ -37,19 +37,21 @@ Dados necessários: o **código da empresa** (o mesmo da linha `CODIGO` do scrip
 2. Esperado em até 30 s: a obra **Obra Teste Nuvem** aparece, o dia de hoje está preenchido
    (Bom / Chuva / 3 pedreiros) e a foto aparece na aba Fotos.
 3. Em B, mude Pedreiro para 5. Espere **Salvo na nuvem ✓**.
-4. Volte para A, feche e abra a página (ou espere 1 minuto). Esperado: Pedreiro = 5 em A.
+4. Volte para A e espere até 2 minutos (o app consulta o servidor a cada minuto; pode também tocar em
+   ⚙ Configurações → **Sincronizar agora**). Esperado: Pedreiro = 5 em A.
 5. Em B, ⚙ Configurações → Nuvem da construtora → **Última sincronização** mostra data e hora de agora.
 
 ## 3. Sem internet
 
 1. Em A, desligue a internet (modo avião ou desconecte o Wi-Fi). Abra o dia de hoje e marque Servente = 4.
    Esperado no cabeçalho: **Sem internet · salvo no aparelho**.
-2. Religue a internet. Em até 1 minuto: **Salvo na nuvem ✓**. Em B (recarregue): Servente = 4.
+2. Religue a internet. Em até 1 minuto: **Salvo na nuvem ✓**. Em B (espere até 2 minutos ou **Sincronizar agora**): Servente = 4
+   **e Pedreiro continua 5** (as alterações de A e de B são juntadas campo a campo).
 
 ## 4. PDF e exclusão
 
 1. Em B, aba **Relatórios** → período "Obra inteira" → **Salvar PDF**. Deve baixar um PDF com capa + 1 folha do dia + 1 folha de fotos.
-2. Em A, aba **Obra** → **Excluir obra** → **Excluir tudo**. Em B (recarregue): a obra sumiu.
+2. Em A, aba **Obra** → **Excluir obra** → **Excluir tudo**. Em B (até 2 minutos ou **Sincronizar agora**): a obra sumiu.
 3. No Drive, em **registros (não mexer) → lixeira**, devem existir cópias `obras__...` e `rdos__...` com data e hora no nome.
    A foto continua em **Fotos** (fotos nunca são apagadas do Drive).
 

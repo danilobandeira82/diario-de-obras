@@ -36,6 +36,14 @@ Feito **uma vez só**, pela diretoria, **num computador**. Leva uns 10 minutos.
 3. Toque em **Convite p/ engenheiro** e mande o link por WhatsApp para cada engenheiro.
    Ele abre o link, digita o nome e pronto — no celular e no computador.
 
+## Como a sincronização funciona
+
+- Cada aparelho grava primeiro nele mesmo e envia em segundos. Os outros aparelhos consultam o servidor **a cada minuto**
+  (a cada 5 minutos com o app em segundo plano) e também ao abrir o app. Para forçar: ⚙ Configurações → **Sincronizar agora**.
+- Se dois aparelhos alterarem o mesmo dia, as alterações são **juntadas campo a campo**; só quando os dois mexem no mesmo campo
+  vale o mais recente, e o app avisa.
+- O Google Apps Script é lento (cada chamada leva de 2 a 15 s). É normal o cabeçalho mostrar "Enviando…" por alguns segundos.
+
 ## Onde ficam os dados
 
 No Drive da conta, pasta **Diário de Obras (dados)**:

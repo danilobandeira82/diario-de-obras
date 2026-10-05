@@ -2306,8 +2306,8 @@ const Nuvem = {
   _falhas: {},            // arquivos que ainda não estão no servidor (tenta de novo depois)
 
   carregar() {
-    return Promise.all([Banco.ler('config', 'nuvem'), Banco.ler('config', 'fila')]).then(([c, f]) => {
-      this.cfg = c || null; this.fila = f || {};
+    return Promise.all([Banco.ler('config', 'nuvem'), Banco.ler('config', 'fila'), Banco.ler('config', 'nuvemLog')]).then(([c, f, l]) => {
+      this.cfg = c || null; this.fila = f || {}; this.log = Array.isArray(l) ? l : [];
       Banco.aoMudar = (loja, k, apagado) => this.marcar(loja, k, apagado);
       if (this.ativa()) { this.estado = 'pendente'; this.ultimaOk = this.cfg.ultimaOk || 0; }
     });
@@ -2336,12 +2336,17 @@ const Nuvem = {
   },
   agendar(ms) { clearTimeout(this._ta); this._ta = setTimeout(() => this.sincronizar(), ms || 0); },
 
+  /* ---------- "base": cópia da última versão que este aparelho recebeu ou enviou de cada registro.
+   * Serve para mesclar campo a campo quando outro aparelho alterou o mesmo registro. ---------- */
+  lerBase(loja, chave) { return Banco.ler('config', 'base|' + loja + '|' + chave).then(b => b || null); },
+  gravarBase(loja, chave, dados) { return Banco.gravar('config', 'base|' + loja + '|' + chave, dados || null, true); },
+
   /* ---------- conversa com o servidor ---------- */
   chamar(acao, extra) {
     const corpo = JSON.stringify(Object.assign({ codigo: this.cfg.codigo, nome: this.cfg.nome || '', acao }, extra || {}));
     const ctl = window.AbortController ? new AbortController() : null;
     const tempo = setTimeout(() => ctl && ctl.abort(), 120000), t0 = Date.now();
-    const anotar = (ok, info) => { this.log.unshift({ t: Date.now(), acao, ms: Date.now() - t0, ok, info: String(info || '').slice(0, 120) }); this.log = this.log.slice(0, 30); };
+    const anotar = (ok, info) => { this.log.unshift({ t: Date.now(), acao, ms: Date.now() - t0, ok, info: String(info || '').slice(0, 120) }); this.log = this.log.slice(0, 30); Banco.gravar('config', 'nuvemLog', this.log, true); };
     // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
     return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
@@ -2366,8 +2371,8 @@ const Nuvem = {
     this._mudouAoEnviar = false;
     return this.enviar()
       .then(() => this.receber()).then(m => { mudou = m || this._mudouAoEnviar; })
+      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); this.cfg.ultimaOk = this.ultimaOk; this.mostrar(); return Banco.gravar('config', 'nuvem', this.cfg, true); })
       .then(() => this.baixarArquivos())
-      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); this.cfg.ultimaOk = this.ultimaOk; Banco.gravar('config', 'nuvem', this.cfg, true); })
       .catch(e => { this.estado = navigator.onLine ? 'erro' : 'offline'; this.erro = e.message || String(e); })
       .finally(() => {
         this.rodando = false; this.mostrar();
@@ -2388,14 +2393,17 @@ const Nuvem = {
       p = p.then(() => Promise.all(lote.map(i => {
         if (i.apagado) return { loja: i.loja, chave: i.chave, apagado: true, atualizadoEm: horaAgora() };
         // lê o registro; a cópia em memória pode ser mais nova (a gravação no banco espera 0,4 s) — vai a mais recente
-        return Banco.ler(i.loja, i.chave).then(v => {
+        return Promise.all([Banco.ler(i.loja, i.chave), this.lerBase(i.loja, i.chave)]).then(([v, base]) => {
           const m = this.emMemoria(i.loja, i.chave);
           if (m && (!v || (m.atualizadoEm || '') >= (v.atualizadoEm || ''))) v = m;
-          return v ? { loja: i.loja, chave: i.chave, dados: v, atualizadoEm: v.atualizadoEm || horaAgora() } : null;   // nunca deduz exclusão pela ausência
+          if (!v) return null;                                                     // nunca deduz exclusão pela ausência
+          const it = { loja: i.loja, chave: i.chave, dados: v, atualizadoEm: v.atualizadoEm || horaAgora() };
+          if (base && base.atualizadoEm) it.base = base.atualizadoEm;              // de que versão este aparelho partiu
+          return it;
         });
       })))
         .then(dados => dados.filter(Boolean)).then(dados => (dados.length ? this.chamar('salvar', { itens: dados }) : Promise.resolve({ itens: [] })))
-        .then(j => { tirar(lote); return this.substituidos(j.itens || []); });
+        .then(j => { tirar(lote); return this.resultadoEnvio(j.itens || [], lote); });
     }
     arqs.forEach(i => { p = p.then(() => this.enviarArquivo(i)).then(ok => { if (ok) tirar([i]); }); });
     return p;
@@ -2406,19 +2414,37 @@ const Nuvem = {
     if (loja === 'config') return App.config || null;
     return null;
   },
-  /* o servidor recusou porque outro aparelho alterou depois: fica a versão mais nova, e avisa */
-  substituidos(res) {
-    const perdidos = res.filter(r => r.status === 'antigo' && r.atual);
-    if (!perdidos.length) return Promise.resolve();
-    return perdidos.reduce((p, r) => p.then(() => {
-      const it = r.atual;
-      if (it.apagado) return Banco.apagar(r.loja, r.chave, true).then(() => this.noApp(r.loja, r.chave, null));
-      return Banco.gravar(r.loja, r.chave, it.dados, true).then(() => this.noApp(r.loja, r.chave, it.dados));
-    }), Promise.resolve()).then(() => {
-      const dias = perdidos.filter(r => r.loja === 'rdos').map(r => br(String(r.chave).split('|')[1]));
-      toast((dias.length ? 'O diário de ' + dias.join(', ') : 'Um registro') + ' foi alterado em outro aparelho depois de você — ficou a versão mais recente' +
-        (perdidos[0].atual.por ? ' (' + perdidos[0].atual.por + ')' : ''), 7000);
-      App.redesenharDepois = true; this._mudouAoEnviar = true;
+  /* resposta do envio: 'ok' guarda a base; 'conflito' mescla campo a campo e reenvia; 'antigo' (servidor velho) adota a versão do servidor */
+  resultadoEnvio(res, lote) {
+    return res.reduce((p, r) => p.then(() => {
+      if (r.status === 'ok') { const env = lote.find(i => i.loja === r.loja && i.chave === r.chave); const v = this.emMemoria(r.loja, r.chave);
+        return v ? this.gravarBase(r.loja, r.chave, Object.assign({}, v, { atualizadoEm: r.atualizadoEm || v.atualizadoEm })) : null; }
+      if (!r.atual) return null;
+      const dele = r.atual;
+      if (r.status === 'conflito' && !dele.apagado) return this.mesclarComServidor(r.loja, r.chave, dele);
+      // 'antigo', ou o outro aparelho apagou: vale o servidor
+      if (dele.apagado) return Banco.apagar(r.loja, r.chave, true).then(() => { this.noApp(r.loja, r.chave, null); this.gravarBase(r.loja, r.chave, null); this.avisar(r, dele); });
+      return Banco.gravar(r.loja, r.chave, dele.dados, true).then(() => { this.noApp(r.loja, r.chave, dele.dados); this.gravarBase(r.loja, r.chave, dele.dados); this.avisar(r, dele); });
+    }), Promise.resolve());
+  },
+  avisar(r, dele) {
+    const dia = r.loja === 'rdos' ? 'O diário de ' + br(String(r.chave).split('|')[1]) : 'Um registro';
+    toast(dia + ' foi alterado em outro aparelho' + (dele.por ? ' (' + dele.por + ')' : '') + ' — ficou a versão de lá', 7000);
+    App.redesenharDepois = true; this._mudouAoEnviar = true;
+  },
+  /* outro aparelho alterou o mesmo registro: junta as duas alterações (o que só um mudou, fica; o que os dois mudaram, vale o mais recente) */
+  mesclarComServidor(loja, chave, dele) {
+    return Promise.all([Banco.ler(loja, chave), this.lerBase(loja, chave)]).then(([meuBanco, base]) => {
+      const meu = this.emMemoria(loja, chave) || meuBanco; if (!meu) return;
+      const meuMaisNovo = (meu.atualizadoEm || '') >= (dele.dados.atualizadoEm || '');
+      const junto = mesclar3(base, meu, dele.dados, meuMaisNovo);
+      junto.atualizadoEm = horaAgora();
+      return Banco.gravar(loja, chave, junto, true).then(() => this.gravarBase(loja, chave, dele.dados)).then(() => {
+        this.noApp(loja, chave, junto); this.marcar(loja, chave);                     // reenvia, agora partindo da versão do servidor
+        const dia = loja === 'rdos' ? 'O diário de ' + br(String(chave).split('|')[1]) : 'Um registro';
+        toast(dia + ' também foi alterado' + (dele.por ? ' por ' + dele.por : ' em outro aparelho') + ' — as duas alterações foram juntadas', 6000);
+        App.redesenharDepois = true; this._mudouAoEnviar = true;
+      });
     });
   },
   enviarArquivo(i) {
@@ -2455,10 +2481,10 @@ const Nuvem = {
       const tl = (local && local.atualizadoEm) || '', tr = it.atualizadoEm || '';
       if (it.apagado) {
         if (!local || tl > tr) return false;
-        return Banco.apagar(it.loja, it.chave, true).then(() => { this.noApp(it.loja, it.chave, null); return true; });
+        return Banco.apagar(it.loja, it.chave, true).then(() => this.gravarBase(it.loja, it.chave, null)).then(() => { this.noApp(it.loja, it.chave, null); return true; });
       }
       if (local && tl >= tr) return false;
-      return Banco.gravar(it.loja, it.chave, it.dados, true).then(() => { this.noApp(it.loja, it.chave, it.dados); return true; });
+      return Banco.gravar(it.loja, it.chave, it.dados, true).then(() => this.gravarBase(it.loja, it.chave, it.dados)).then(() => { this.noApp(it.loja, it.chave, it.dados); return true; });
     });
   },
   noApp(loja, chave, v) {
@@ -2475,9 +2501,11 @@ const Nuvem = {
       const tem = new Set(fs.concat(ds)), falta = [], agora = Date.now();
       Object.values(App.rdos).forEach(r => (r.fotos || []).forEach(f => { if (!tem.has(f.id)) falta.push(['fotos', f.id, r.obraId, r.data]); }));
       App.obras.forEach(o => (o.docs || []).forEach(d => { if (!tem.has(d.id)) falta.push(['docs', d.id, o.id, d]); }));
-      const fila = falta.filter(x => !(this._falhas[x[1]] > agora)).sort((a, b) => String(b[3]).localeCompare(String(a[3]))).slice(0, 15);
+      const fila = falta.filter(x => !(this._falhas[x[1]] > agora)).sort((a, b) => String(b[3]).localeCompare(String(a[3]))).slice(0, 6);
       this.baixando = fila.length; this.mostrar();
-      return fila.reduce((p, x) => p.then(() => this.baixarArquivo(x[0], x[1], x[2], x[3]).catch(() => { this._falhas[x[1]] = Date.now() + 10 * 60000; })), Promise.resolve())
+      return fila.reduce((p, x) => p.then(() => this.baixarArquivo(x[0], x[1], x[2], x[3]).catch(e => {
+          // "ainda não enviada": o outro aparelho ainda não subiu (ou nunca vai subir) — só tenta de novo em 6 h; outros erros, em 10 min
+          this._falhas[x[1]] = Date.now() + (/não enviad/.test(e && e.message) ? 6 * 3600000 : 10 * 60000); })), Promise.resolve())
         .then(() => { this.baixando = 0; if (fila.length) { carregarMiniaturas(); if (falta.length > fila.length) this.agendar(2000); } });
     });
   },
@@ -2580,7 +2608,31 @@ const horaAgora = () => new Date(Date.now() + (Nuvem.difRelogio || 0)).toISOStri
 window.addEventListener('online', () => Nuvem.agendar(1000));
 window.addEventListener('offline', () => { Nuvem.estado = 'offline'; Nuvem.mostrar(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) Nuvem.agendar(500); });
-setInterval(() => { if (!document.hidden) Nuvem.sincronizar(); }, 60000);
+/* a cada minuto com a aba à vista; em segundo plano, a cada 5 minutos */
+let _tick = 0;
+setInterval(() => { _tick++; if (!document.hidden || _tick % 5 === 0) Nuvem.sincronizar(); }, 60000);
+
+/* mescla 3 vias: base = de onde os dois partiram; meu = este aparelho; dele = servidor.
+ * Campo que só um mudou: fica a mudança. Campo que os dois mudaram: vale o do registro mais recente. */
+function mesclar3(base, meu, dele, meuMaisNovo) {
+  const J = JSON.stringify, obj = x => x && typeof x === 'object' && !Array.isArray(x);
+  if (J(meu) === J(dele)) return meu;
+  if (base !== undefined && J(meu) === J(base)) return dele;      // eu não mexi
+  if (base !== undefined && J(dele) === J(base)) return meu;      // ele não mexeu
+  if (obj(meu) && obj(dele)) {
+    const r = {}, chaves = new Set(Object.keys(meu).concat(Object.keys(dele)));
+    chaves.forEach(k => {
+      if (k === 'atualizadoEm' || k === 'atualizadoPor') return;
+      const b = obj(base) ? base[k] : undefined;
+      if (!(k in meu)) r[k] = (base !== undefined && b !== undefined && J(dele[k]) === J(b)) ? undefined : dele[k];   // eu apaguei o campo
+      else if (!(k in dele)) r[k] = (base !== undefined && b !== undefined && J(meu[k]) === J(b)) ? undefined : meu[k]; // ele apagou
+      else r[k] = mesclar3(b, meu[k], dele[k], meuMaisNovo);
+      if (r[k] === undefined) delete r[k];
+    });
+    return r;
+  }
+  return meuMaisNovo ? meu : dele;                                 // os dois mudaram a mesma coisa
+}
 
 /* =====================================================================
  * PARTIDA

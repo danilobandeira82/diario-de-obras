@@ -3,6 +3,8 @@
  * Guarda diários, fotos e documentos numa pasta do Google Drive.
  * Grátis (usa o espaço do Drive da conta). Instalação: veja COMO-INSTALAR.md
  *
+ * Versão 5: o índice guarda também o conteúdo dos registros recentes (uma leitura por consulta),
+ * e as alterações feitas em aparelhos diferentes são mescladas campo a campo (base + conflito).
  * Versão 4: nunca procura pasta ou arquivo pelo nome (a busca do Drive pode
  * demorar minutos para enxergar o que acabou de ser criado e isso espalhava os
  * dados em pastas duplicadas). Os códigos (IDs) ficam guardados nas propriedades
@@ -13,7 +15,8 @@
 const CODIGO = 'TROQUE-ESTE-CODIGO';
 
 const PASTA_PRINCIPAL = 'Diário de Obras (dados)';
-const VERSAO_SERVIDOR = 4;
+const VERSAO_SERVIDOR = 5;
+const DIAS_NO_INDICE = 45;   // registros alterados há menos tempo que isso ficam copiados dentro do índice (consulta rápida)
 
 function doGet() {
   return saida({ ok: true, app: 'diario-de-obras', versao: VERSAO_SERVIDOR, msg: 'Servidor do Diário de Obras funcionando.' });
@@ -106,6 +109,12 @@ function comTrava(fn) {
   try { return fn(); } finally { t.releaseLock(); }
 }
 
+/* revarrer as pastas de uma obra custa caro: no máximo uma vez a cada 10 minutos */
+function podeRevarrer(obraId) {
+  const k = 'scan_' + obraId, ult = +(prop(k) || 0);
+  if (Date.now() - ult < 10 * 60000) return false;
+  setProp(k, String(Date.now())); return true;
+}
 /* índice de fotos/documentos de uma obra: { fotos: {id: driveId}, docs: {id: driveId} } */
 function indiceObra(obraId, obraNome, remontarAgora) {
   const ind = lerIndiceArq('i_obra_' + obraId, pastaObra(obraId, obraNome), 'indice (não mexer).json', { fotos: {}, docs: {} }, atual => {
@@ -159,7 +168,7 @@ function montarIndiceReg(atual) {
 }
 
 const ACOES = {
-  ping: () => ({ pasta: raiz().getUrl(), registros: Object.keys(indiceRegistros().dados).length }),
+  ping: () => ({ pasta: raiz().getUrl() }),
 
   /* itens: [{loja, chave, dados, apagado, atualizadoEm}] — fica valendo o mais recente */
   salvar: p => comTrava(() => {
@@ -172,18 +181,27 @@ const ACOES = {
         atualizadoEm: it.atualizadoEm || new Date().toISOString(), por: p.nome || '' };
       let arq = reg ? arquivoPorId(reg.id) : null;
       if (arq) {
-        const txtAtual = arq.getBlob().getDataAsString('UTF-8');
-        let atual = {}; try { atual = JSON.parse(txtAtual); } catch (x) {}
-        // já existe versão mais nova (feita em outro aparelho): não sobrescreve e devolve a atual
-        if (atual.atualizadoEm && atual.atualizadoEm > novo.atualizadoEm) { res.push({ loja: it.loja, chave: it.chave, status: 'antigo', atual }); return; }
+        let atual = reg.d || null, txtAtual = null;
+        if (!atual) { txtAtual = arq.getBlob().getDataAsString('UTF-8'); try { atual = JSON.parse(txtAtual); } catch (x) { atual = {}; } }
+        if (it.base !== undefined) {
+          // o aparelho diz de que versão partiu; se o servidor já tem outra, devolve para mesclar campo a campo
+          if (atual.atualizadoEm && atual.atualizadoEm !== it.base) { res.push({ loja: it.loja, chave: it.chave, status: 'conflito', atual }); return; }
+        } else if (atual.atualizadoEm && atual.atualizadoEm > novo.atualizadoEm) {
+          // aparelho antigo (sem base): vale o registro mais recente
+          res.push({ loja: it.loja, chave: it.chave, status: 'antigo', atual }); return;
+        }
+        if (txtAtual === null) txtAtual = JSON.stringify(atual);
         // vai apagar algo que tinha conteúdo: guarda uma cópia na lixeira antes (dá para recuperar à mão)
         if (novo.apagado && atual.dados) pastaLixeira().createFile(nome.replace(/\.json$/, '') + '__' +
           Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd_HH-mm-ss') + '.json', txtAtual, MimeType.PLAIN_TEXT);
         arq.setContent(JSON.stringify(novo));
       } else arq = pasta.createFile(nome, JSON.stringify(novo), MimeType.PLAIN_TEXT);
-      ind.dados[nome] = { id: arq.getId(), t: t++ };
-      res.push({ loja: it.loja, chave: it.chave, status: 'ok' });
+      ind.dados[nome] = { id: arq.getId(), t: t++, d: novo };
+      res.push({ loja: it.loja, chave: it.chave, status: 'ok', atualizadoEm: novo.atualizadoEm });
     });
+    // registros antigos saem do índice (ficam só nos arquivos) para a consulta continuar leve
+    const corte = Date.now() - DIAS_NO_INDICE * 86400000;
+    Object.keys(ind.dados).forEach(n => { if (ind.dados[n].d && ind.dados[n].t < corte) delete ind.dados[n].d; });
     gravarIndiceArq(ind);
     return { itens: res };
   }),
@@ -195,7 +213,8 @@ const ACOES = {
     const ind = indiceRegistros(desde === 0).dados;
     const lista = Object.keys(ind).map(n => ind[n]).filter(r => r.t >= desde).sort((a, b) => a.t - b.t);
     const pg = lista.slice(0, lim), itens = [];
-    pg.forEach(r => { const a = arquivoPorId(r.id); if (!a) return; try { itens.push(JSON.parse(a.getBlob().getDataAsString('UTF-8'))); } catch (e) {} });
+    pg.forEach(r => { if (r.d) { itens.push(r.d); return; }
+      const a = arquivoPorId(r.id); if (!a) return; try { itens.push(JSON.parse(a.getBlob().getDataAsString('UTF-8'))); } catch (e) {} });
     return { itens, cursor: pg.length ? pg[pg.length - 1].t : desde, mais: lista.length > lim, total: Object.keys(ind).length };
   },
 
@@ -210,7 +229,7 @@ const ACOES = {
   }),
   foto_baixar: p => {
     let id = indiceObra(p.obraId).dados.fotos[p.id], a = arquivoPorId(id);
-    if (!a) { id = indiceObra(p.obraId, null, true).dados.fotos[p.id]; a = arquivoPorId(id); }   // revarre as pastas
+    if (!a && podeRevarrer(p.obraId)) { id = indiceObra(p.obraId, null, true).dados.fotos[p.id]; a = arquivoPorId(id); }   // revarre as pastas
     if (!a) throw new Error('foto ainda não enviada');
     const b = a.getBlob();
     return { base64: Utilities.base64Encode(b.getBytes()), mime: b.getContentType() };
@@ -227,7 +246,7 @@ const ACOES = {
   }),
   doc_baixar: p => {
     let id = indiceObra(p.obraId).dados.docs[p.id], a = arquivoPorId(id);
-    if (!a) { id = indiceObra(p.obraId, null, true).dados.docs[p.id]; a = arquivoPorId(id); }
+    if (!a && podeRevarrer(p.obraId)) { id = indiceObra(p.obraId, null, true).dados.docs[p.id]; a = arquivoPorId(id); }
     if (!a) throw new Error('documento ainda não enviado');
     const b = a.getBlob();
     return { base64: Utilities.base64Encode(b.getBytes()), mime: b.getContentType() };
