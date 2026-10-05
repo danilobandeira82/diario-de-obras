@@ -350,6 +350,10 @@ function cartaoNuvem() {
   if (Nuvem.ativa()) {
     h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>' +
       '<p style="font-size:14px;margin:0 0 4px"><b>Conectado como:</b> ' + esc(n.nome) + '</p>' +
+      '<p style="font-size:14px;margin:0 0 4px"><b>Última sincronização:</b> ' + (n.ultimaOk ? br(isoDe(new Date(n.ultimaOk))) + ' às ' +
+        new Date(n.ultimaOk).toTimeString().slice(0, 5) : 'ainda não') + '</p>' +
+      (Nuvem.versaoServidor && Nuvem.versaoServidor < 2 ? '<div class="aviso a" style="margin:8px 0">' + ic('alerta') + '<div><b>Atualize o servidor no Google</b> ' +
+        '(cole o Codigo.gs novo e publique uma nova versão) — a versão antiga pode demorar a mostrar obras novas nos outros aparelhos.</div></div>' : '') +
       '<p style="font-size:13px;color:var(--tinta2);margin:0 0 12px;word-break:break-all">' + esc(n.url.slice(0, 60)) + '…</p>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
       '<button class="btn pri" data-a="nuvemSinc">' + ic('subir') + 'Sincronizar agora</button>' +

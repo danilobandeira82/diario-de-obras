@@ -8,7 +8,7 @@
 const CODIGO = 'TROQUE-ESTE-CODIGO';
 
 const PASTA_PRINCIPAL = 'Diário de Obras (dados)';
-const VERSAO_SERVIDOR = 1;
+const VERSAO_SERVIDOR = 2;
 
 function doGet() {
   return saida({ ok: true, app: 'diario-de-obras', versao: VERSAO_SERVIDOR, msg: 'Servidor do Diário de Obras funcionando.' });
@@ -75,39 +75,68 @@ function comTrava(fn) {
   try { return fn(); } finally { t.releaseLock(); }
 }
 
-/* ---------- registros (obras, diários, configuração) ---------- */
+/* ---------- registros (obras, diários, configuração) ----------
+ * Cada registro é um arquivo .json na pasta "registros". O arquivo "indice" guarda,
+ * para cada registro, o id do arquivo e a hora da última alteração — assim o servidor
+ * sabe na hora o que mudou, sem depender da busca do Drive (que às vezes demora). */
 function nomeRegistro(loja, chave) { return loja + '__' + String(chave).replace(/[^\w.-]/g, '_') + '.json'; }
+const NOME_INDICE_REG = 'indice dos registros (não mexer).json';
+function lerIndiceReg(pasta) {
+  const it = pasta.getFilesByName(NOME_INDICE_REG);
+  if (it.hasNext()) {
+    const arq = it.next();
+    try { return { arq, dados: JSON.parse(arq.getBlob().getDataAsString('UTF-8')) }; } catch (x) {}
+    return { arq, dados: montarIndiceReg(pasta) };
+  }
+  return { arq: null, dados: montarIndiceReg(pasta) };
+}
+/* primeira vez (ou índice perdido): monta a partir dos arquivos que existem */
+function montarIndiceReg(pasta) {
+  const d = {}, it = pasta.getFiles();
+  while (it.hasNext()) {
+    const f = it.next(), n = f.getName();
+    if (n === NOME_INDICE_REG || !/\.json$/.test(n)) continue;
+    d[n] = { id: f.getId(), t: f.getLastUpdated().getTime() };
+  }
+  return d;
+}
+function gravarIndiceReg(pasta, ind) {
+  const txt = JSON.stringify(ind.dados);
+  if (ind.arq) ind.arq.setContent(txt); else ind.arq = pasta.createFile(NOME_INDICE_REG, txt, MimeType.PLAIN_TEXT);
+}
 
 const ACOES = {
   ping: () => ({ pasta: raiz().getUrl() }),
 
   /* itens: [{loja, chave, dados, apagado, atualizadoEm}] — fica valendo o mais recente */
   salvar: p => comTrava(() => {
-    const pasta = pastaRegistros(), res = [];
+    const pasta = pastaRegistros(), ind = lerIndiceReg(pasta), res = [];
+    let t = Date.now();
+    Object.keys(ind.dados).forEach(n => { if (ind.dados[n].t >= t) t = ind.dados[n].t + 1; });   // hora sempre crescente
     (p.itens || []).forEach(it => {
-      const nome = nomeRegistro(it.loja, it.chave), ex = pasta.getFilesByName(nome);
+      const nome = nomeRegistro(it.loja, it.chave), reg = ind.dados[nome];
       const novo = { loja: it.loja, chave: it.chave, dados: it.apagado ? null : it.dados, apagado: !!it.apagado,
         atualizadoEm: it.atualizadoEm || new Date().toISOString(), por: p.nome || '' };
-      if (ex.hasNext()) {
-        const arq = ex.next();
+      let arq = null;
+      if (reg) { try { arq = DriveApp.getFileById(reg.id); } catch (x) { arq = null; } }
+      if (arq) {
         let atual = {}; try { atual = JSON.parse(arq.getBlob().getDataAsString('UTF-8')); } catch (x) {}
         if (atual.atualizadoEm && atual.atualizadoEm > novo.atualizadoEm) { res.push({ loja: it.loja, chave: it.chave, status: 'antigo' }); return; }
         arq.setContent(JSON.stringify(novo));
-      } else pasta.createFile(nome, JSON.stringify(novo), MimeType.PLAIN_TEXT);
+      } else arq = pasta.createFile(nome, JSON.stringify(novo), MimeType.PLAIN_TEXT);
+      ind.dados[nome] = { id: arq.getId(), t: t++ };
       res.push({ loja: it.loja, chave: it.chave, status: 'ok' });
     });
+    gravarIndiceReg(pasta, ind);
     return { itens: res };
   }),
 
   /* o que mudou desde "desde" (milissegundos), em ordem, em páginas */
   mudancas: p => {
-    const pasta = pastaRegistros(), desde = +p.desde || 0, lim = Math.min(+p.limite || 60, 200);
-    const q = 'modifiedDate >= "' + Utilities.formatDate(new Date(Math.max(0, desde - 1000)), 'UTC', "yyyy-MM-dd'T'HH:mm:ss") + '" and trashed = false';
-    const it = pasta.searchFiles(q), lista = [];
-    while (it.hasNext()) { const f = it.next(); lista.push({ t: f.getLastUpdated().getTime(), f }); }
-    lista.sort((a, b) => a.t - b.t);
+    const pasta = pastaRegistros(), ind = lerIndiceReg(pasta).dados, desde = +p.desde || 0, lim = Math.min(+p.limite || 60, 200);
+    const lista = Object.keys(ind).map(n => ind[n]).filter(r => r.t >= desde).sort((a, b) => a.t - b.t);
     const pg = lista.slice(0, lim), itens = [];
-    pg.forEach(x => { try { itens.push(JSON.parse(x.f.getBlob().getDataAsString('UTF-8'))); } catch (e) {} });
+    pg.forEach(r => { try { itens.push(JSON.parse(DriveApp.getFileById(r.id).getBlob().getDataAsString('UTF-8'))); } catch (e) {} });
     return { itens, cursor: pg.length ? pg[pg.length - 1].t : desde, mais: lista.length > lim };
   },
 

@@ -53,7 +53,7 @@ const Nuvem = {
     // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
     return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
-      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); return j; })
+      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); this.versaoServidor = j.versao || 1; return j; })
       .finally(() => clearTimeout(tempo));
   },
 
@@ -65,7 +65,7 @@ const Nuvem = {
     return this.enviar()
       .then(() => this.receber()).then(m => { mudou = m; })
       .then(() => this.baixarArquivos())
-      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); })
+      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); this.cfg.ultimaOk = this.ultimaOk; Banco.gravar('config', 'nuvem', this.cfg, true); })
       .catch(e => { this.estado = navigator.onLine ? 'erro' : 'offline'; this.erro = e.message || String(e); })
       .finally(() => {
         this.rodando = false; this.mostrar();

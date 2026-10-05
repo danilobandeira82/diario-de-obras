@@ -864,6 +864,10 @@ function cartaoNuvem() {
   if (Nuvem.ativa()) {
     h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>' +
       '<p style="font-size:14px;margin:0 0 4px"><b>Conectado como:</b> ' + esc(n.nome) + '</p>' +
+      '<p style="font-size:14px;margin:0 0 4px"><b>Última sincronização:</b> ' + (n.ultimaOk ? br(isoDe(new Date(n.ultimaOk))) + ' às ' +
+        new Date(n.ultimaOk).toTimeString().slice(0, 5) : 'ainda não') + '</p>' +
+      (Nuvem.versaoServidor && Nuvem.versaoServidor < 2 ? '<div class="aviso a" style="margin:8px 0">' + ic('alerta') + '<div><b>Atualize o servidor no Google</b> ' +
+        '(cole o Codigo.gs novo e publique uma nova versão) — a versão antiga pode demorar a mostrar obras novas nos outros aparelhos.</div></div>' : '') +
       '<p style="font-size:13px;color:var(--tinta2);margin:0 0 12px;word-break:break-all">' + esc(n.url.slice(0, 60)) + '…</p>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
       '<button class="btn pri" data-a="nuvemSinc">' + ic('subir') + 'Sincronizar agora</button>' +
@@ -2326,7 +2330,7 @@ const Nuvem = {
     // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
     return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
-      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); return j; })
+      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); this.versaoServidor = j.versao || 1; return j; })
       .finally(() => clearTimeout(tempo));
   },
 
@@ -2338,7 +2342,7 @@ const Nuvem = {
     return this.enviar()
       .then(() => this.receber()).then(m => { mudou = m; })
       .then(() => this.baixarArquivos())
-      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); })
+      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); this.cfg.ultimaOk = this.ultimaOk; Banco.gravar('config', 'nuvem', this.cfg, true); })
       .catch(e => { this.estado = navigator.onLine ? 'erro' : 'offline'; this.erro = e.message || String(e); })
       .finally(() => {
         this.rodando = false; this.mostrar();
