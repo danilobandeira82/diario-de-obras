@@ -1,0 +1,13 @@
+{
+  "name": "Diário de Obras",
+  "short_name": "Diário",
+  "description": "Relatório diário de obra que funciona sem internet. Os dados ficam no aparelho.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1f4",
+  "theme_color": "#1d3550",
+  "lang": "pt-BR",
+  "icons": [{ "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

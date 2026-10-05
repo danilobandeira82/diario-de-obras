@@ -1,0 +1,1882 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diário de Obras</title>
+<meta name="description" content="Relatório diário de obra que funciona sem internet. Os dados ficam no aparelho.">
+<meta name="theme-color" content="#1d3550">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diário">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone.svg">
+<style>
+:root{
+  --bg:#eef1f4; --sup:#ffffff; --sup2:#f6f8fa; --tinta:#11161c; --tinta2:#566271; --tinta3:#8b96a3;
+  --linha:#dbe1e7; --aco:#1d3550; --aco2:#2a4a6d;
+  --acao:#e8590c; --acao2:#c94a06; --acao-suave:#fdebe0;
+  --ok:#1a7f45; --ok-s:#dff3e7; --alerta:#a96a0f; --alerta-s:#fbefd6;
+  --erro:#c0262d; --erro-s:#fbe2e3; --info:#1d68ad; --info-s:#dcebf8;
+  --r:14px; --sombra:0 1px 2px rgba(17,22,28,.06),0 2px 8px rgba(17,22,28,.05);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tinta)}
+body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding-bottom:96px;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{flex:none}
+:focus-visible{outline:3px solid var(--acao);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* topo */
+.topo{position:sticky;top:0;z-index:30;background:var(--aco);color:#fff;
+  padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));
+  display:flex;align-items:center;gap:10px;min-height:56px}
+.topo h1{flex:1;margin:0;font-size:17px;font-weight:650;line-height:1.2;min-width:0}
+.topo h1 small{display:block;font-size:12px;font-weight:450;color:#b8c6d6;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo .ic{background:rgba(255,255,255,.12);border:0;color:#fff;width:40px;height:40px;
+  border-radius:11px;display:grid;place-items:center;flex:none}
+.topo .ic svg{width:21px;height:21px}
+.salvo{font-size:12px;color:#b8c6d6;white-space:nowrap}
+
+/* abas da obra */
+.abas{position:sticky;top:56px;z-index:25;background:var(--aco);display:flex;gap:2px;
+  padding:0 8px;overflow-x:auto;scrollbar-width:none}
+.abas::-webkit-scrollbar{display:none}
+.abas button{flex:none;background:none;border:0;color:#b8c6d6;padding:11px 13px;font-size:14px;
+  font-weight:550;border-bottom:3px solid transparent}
+.abas button.on{color:#fff;border-bottom-color:var(--acao)}
+
+main{max-width:880px;margin:0 auto;padding:14px}
+.grade2{display:grid;gap:12px}
+@media(min-width:900px){ .grade2{grid-template-columns:1fr 1fr;align-items:start} .larga{grid-column:1/-1} }
+
+/* cartões */
+.cartao{background:var(--sup);border:1px solid var(--linha);border-radius:var(--r);
+  box-shadow:var(--sombra);margin-bottom:12px}
+.grade2 .cartao{margin-bottom:0}
+.cartao-cab{display:flex;align-items:center;gap:10px;padding:13px 15px}
+.cartao-cab .ico{width:34px;height:34px;border-radius:10px;background:var(--sup2);display:grid;
+  place-items:center;flex:none;color:var(--aco)}
+.cartao-cab .ico svg{width:19px;height:19px}
+.cartao-cab h2{flex:1;margin:0;font-size:15.5px;font-weight:650}
+.cartao-cab .resumo{font-size:12.5px;color:var(--tinta2);font-weight:450;display:block;margin-top:1px}
+.cartao-corpo{padding:0 15px 15px}
+.marca-ok{width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;display:grid;
+  place-items:center;flex:none}
+.marca-ok svg{width:14px;height:14px}
+.marca-vazia{width:22px;height:22px;border-radius:50%;border:2px dashed var(--linha);flex:none}
+
+/* botões */
+.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:650;font-size:15.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
+.btn svg{width:19px;height:19px}
+.btn.pri{background:var(--acao);color:#fff}
+.btn.pri:active{background:var(--acao2)}
+.btn.sec{background:var(--sup);color:var(--aco);border:1.5px solid var(--linha)}
+.btn.fant{background:none;color:var(--aco);padding:10px 12px;min-height:40px}
+.btn.verde{background:var(--ok);color:#fff}
+.btn.cheio{width:100%}
+.btn:disabled{opacity:.45}
+.mais{width:100%;border:1.5px dashed #b9c3ce;background:var(--sup2);color:var(--aco);border-radius:12px;
+  padding:12px;font-weight:600;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+.mais svg{width:17px;height:17px}
+
+/* chips e segmentos */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1.5px solid var(--linha);background:var(--sup);border-radius:999px;padding:8px 13px;
+  font-size:14px;color:var(--tinta2);display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--aco);border-color:var(--aco);color:#fff;font-weight:600}
+.seg{display:flex;background:var(--sup2);border:1px solid var(--linha);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;border-radius:9px;padding:9px 6px;font-size:14px;color:var(--tinta2);
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:550}
+.seg button svg{width:22px;height:22px}
+.seg button.on{background:var(--sup);color:var(--tinta);box-shadow:var(--sombra)}
+.seg button.on.sim{color:var(--ok)} .seg button.on.nao{color:var(--erro)}
+
+/* stepper */
+.linha-qtd{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f3}
+.linha-qtd:last-child{border-bottom:0}
+.linha-qtd .nome{flex:1;font-size:15px;min-width:0}
+.linha-qtd.zero .nome{color:var(--tinta3)}
+.passo{display:flex;align-items:center;border:1.5px solid var(--linha);border-radius:11px;overflow:hidden;flex:none}
+.passo button{width:42px;height:40px;border:0;background:var(--sup2);font-size:20px;color:var(--aco);font-weight:600}
+.passo span{min-width:38px;text-align:center;font-weight:700;font-size:16px}
+.total{display:flex;justify-content:space-between;align-items:center;background:var(--sup2);
+  border-radius:11px;padding:10px 13px;margin-top:10px;font-weight:650}
+
+/* campos */
+label.rot{display:block;font-size:13px;font-weight:600;color:var(--tinta2);margin:12px 0 6px}
+.campo{width:100%;border:1.5px solid var(--linha);border-radius:11px;padding:11px 12px;background:var(--sup);
+  font-size:16px}
+.campo:focus{border-color:var(--aco2);outline:none}
+textarea.campo{min-height:96px;resize:vertical}
+.dica{font-size:12.5px;color:var(--tinta3);margin:6px 0 0;display:flex;gap:6px;align-items:center}
+.dica svg{width:15px;height:15px;flex:none}
+
+/* itens de lista */
+.item{border:1px solid var(--linha);border-radius:12px;padding:11px 12px;margin-bottom:9px;background:var(--sup2)}
+.item-topo{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.item-topo b{flex:1;font-size:14px}
+.x{border:0;background:none;color:var(--tinta3);width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
+.x svg{width:18px;height:18px}
+.pilula{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;padding:3px 9px;border-radius:999px}
+.p-ok{background:var(--ok-s);color:var(--ok)} .p-alerta{background:var(--alerta-s);color:var(--alerta)}
+.p-erro{background:var(--erro-s);color:var(--erro)} .p-info{background:var(--info-s);color:var(--info)}
+.p-neutro{background:var(--sup2);color:var(--tinta2);border:1px solid var(--linha)}
+
+/* início */
+.obra{padding:15px}
+.obra-topo{display:flex;gap:12px;align-items:flex-start}
+.obra-topo div{flex:1;min-width:0}
+.obra h3{margin:0;font-size:17px;line-height:1.25}
+.obra .sub{font-size:13.5px;color:var(--tinta2);margin-top:2px}
+.prazo{height:6px;background:var(--sup2);border-radius:99px;overflow:hidden;margin:12px 0 6px}
+.prazo i{display:block;height:100%;background:var(--aco2)}
+.metricas{display:flex;gap:14px;font-size:12.5px;color:var(--tinta2);flex-wrap:wrap}
+.metricas b{color:var(--tinta);font-size:14px}
+.obra-acoes{display:flex;gap:8px;margin-top:13px}
+.obra-acoes .btn{flex:1}
+.vazio{text-align:center;padding:40px 18px;color:var(--tinta2)}
+.vazio>svg{width:56px;height:56px;color:var(--tinta3)}
+.vazio h3{color:var(--tinta);margin:12px 0 6px}
+
+/* calendário */
+.cal-topo{display:flex;align-items:center;justify-content:space-between;padding:12px 15px}
+.cal-topo b{font-size:16px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 12px 12px}
+.cal .dow{text-align:center;font-size:11px;font-weight:700;color:var(--tinta3);padding:2px 0 4px}
+.dia{aspect-ratio:1;border-radius:11px;border:1px solid var(--linha);background:var(--sup);font-weight:650;
+  font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  position:relative;color:var(--tinta)}
+.dia .pt{width:6px;height:6px;border-radius:50%}
+.dia.vz{visibility:hidden}
+.dia.ok{background:var(--ok-s);border-color:#a8dcbd;color:var(--ok)}
+.dia.parado{background:var(--info-s);border-color:#b2d2ee;color:var(--info)}
+.dia.rasc{background:var(--alerta-s);border-color:#efd39b;color:var(--alerta)}
+.dia.falta{background:var(--erro-s);border-color:#f0b9bc;color:var(--erro)}
+.dia.fut{color:var(--tinta3);background:var(--sup2)}
+.dia.antes{color:var(--tinta3);background:transparent;border-style:dashed}
+.dia.hoje{outline:2.5px solid var(--acao);outline-offset:1px}
+.dia .cam{position:absolute;top:4px;right:5px;width:11px;height:11px;opacity:.7}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;padding:0 15px 14px;font-size:12px;color:var(--tinta2)}
+.legenda i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+
+/* fotos */
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.foto{position:relative;aspect-ratio:1;border-radius:11px;overflow:hidden;background:var(--sup2);border:1px solid var(--linha)}
+.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto .leg{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.72));
+  color:#fff;font-size:11px;padding:14px 6px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foto .x{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;width:28px;height:28px}
+.camera{display:flex;gap:8px;margin-bottom:10px}
+.camera label{flex:1}
+.camera input{display:none}
+
+/* barra de ação inferior */
+.barra-acao{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.96);
+  backdrop-filter:blur(8px);border-top:1px solid var(--linha);
+  padding:10px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.barra-acao .dentro{max-width:880px;margin:0 auto;display:flex;gap:9px;align-items:center}
+.barra-acao .dentro .btn{flex:1}
+.progresso{flex:none;font-size:12.5px;color:var(--tinta2);text-align:center;min-width:64px;line-height:1.2}
+.progresso b{display:block;font-size:17px;color:var(--tinta)}
+
+/* folha inferior (modal) */
+.fundo{position:fixed;inset:0;background:rgba(10,15,20,.45);z-index:60;display:flex;align-items:flex-end;
+  justify-content:center;animation:surge .15s ease-out}
+.folha{background:var(--sup);width:100%;max-width:620px;max-height:92vh;overflow:auto;
+  border-radius:20px 20px 0 0;padding:8px 16px 18px;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:700px){ .fundo{align-items:center} .folha{border-radius:20px} }
+.folha .alca{width:40px;height:5px;border-radius:9px;background:var(--linha);margin:4px auto 10px}
+.folha h3{margin:4px 0 10px;font-size:18px}
+@keyframes surge{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){ .fundo{animation:none} }
+
+.aviso{border-radius:12px;padding:11px 13px;font-size:14px;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start}
+.aviso svg{width:19px;height:19px;flex:none;margin-top:1px}
+.aviso.a{background:var(--alerta-s);color:#6e4508} .aviso.e{background:var(--erro-s);color:#7d1418}
+.aviso.i{background:var(--info-s);color:#0f416d} .aviso.o{background:var(--ok-s);color:#0f5130}
+
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--tinta);color:#fff;
+  padding:11px 17px;border-radius:12px;font-size:14px;z-index:80;box-shadow:0 6px 24px rgba(0,0,0,.25);
+  max-width:90vw}
+
+/* indicadores */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--sup);border:1px solid var(--linha);border-radius:var(--r);padding:13px 14px}
+.kpi b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi span{font-size:12.5px;color:var(--tinta2)}
+.barras{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:8px}
+.barras div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.barras i{display:block;width:100%;max-width:34px;border-radius:6px 6px 2px 2px;background:var(--aco2)}
+.barras small{font-size:10.5px;color:var(--tinta3)}
+
+.assin{border:1.5px dashed var(--linha);border-radius:12px;background:#fff;touch-action:none;width:100%;height:150px;display:block}
+.assin-img{border:1px solid var(--linha);border-radius:12px;background:#fff;width:100%;max-height:150px;object-fit:contain}
+
+.lista-sec .linha{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #edf0f3}
+.lista-sec .linha:last-child{border-bottom:0}
+.lista-sec .linha span{flex:1}
+.interruptor{width:50px;height:30px;border-radius:99px;background:#c9d1d9;border:0;position:relative;flex:none}
+.interruptor::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.interruptor.on{background:var(--ok)} .interruptor.on::after{left:23px}
+
+/* impressão */
+#impressao{display:none}
+@media print{
+  @page{size:A4;margin:11mm}
+  body{background:#fff;padding:0}
+  body>*:not(#impressao){display:none !important}
+  #impressao{display:block !important}
+}
+
+.seletor{width:100%;display:flex;align-items:center;gap:8px;border:1.5px solid var(--linha);background:var(--sup);
+  border-radius:11px;padding:11px 12px;margin-bottom:8px;text-align:left;font-weight:600;font-size:15px;color:var(--tinta)}
+.seletor span{flex:1}
+.seletor svg{color:var(--tinta3)}
+.seletor.vazio{color:var(--acao);border-style:dashed;border-color:#f3b48f;background:var(--acao-suave)}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<noscript>Ative o JavaScript para usar o Diário de Obras.</noscript>
+<script>
+'use strict';
+/* =====================================================================
+ * BASE — utilitários, ícones e banco local (IndexedDB)
+ * ===================================================================== */
+
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const isoDe = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const hojeIso = () => isoDe(new Date());
+const dataDe = iso => { const p = String(iso).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); };
+const br = iso => { if (!iso) return '—'; const p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+const somaDias = (iso, n) => { const d = dataDe(iso); d.setDate(d.getDate() + n); return isoDe(d); };
+const difDias = (a, b) => Math.round((dataDe(b) - dataDe(a)) / 86400000);
+const SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const extenso = iso => { const d = dataDe(iso); return SEMANA[d.getDay()] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()]; };
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+const mb = n => (n / 1048576).toFixed(n < 10485760 ? 1 : 0).replace('.', ',') + ' MB';
+
+/* ---- ícones (traço, 24px) ---- */
+const P = {
+  voltar:'<path d="M15 18l-6-6 6-6"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  mais:'<path d="M12 5v14M5 12h14"/>',
+  ok:'<path d="M20 6L9 17l-5-5"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  sol:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  nuvem:'<path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9z"/>',
+  chuva:'<path d="M16 13v8M8 13v8M12 15v8"/><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"/>',
+  tempestade:'<path d="M19 16.9A5 5 0 0 0 18 7h-1.3a8 8 0 1 0-11.7 9"/><path d="M13 11l-4 6h6l-4 6"/>',
+  pessoas:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  lista:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  caminhao:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  galeria:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  alerta:'<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  capacete:'<path d="M2 18h20M4 18v-3a8 8 0 0 1 16 0v3"/><path d="M10 7V5a2 2 0 0 1 4 0v2"/>',
+  caixa:'<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/>',
+  visita:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  texto:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
+  caneta:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  relogio:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  copiar:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  pdf:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6M9 11h2"/>',
+  planilha:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  baixar:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  subir:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+  mic:'<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>',
+  local:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  predio:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/>',
+  grafico:'<path d="M18 20V10M12 20V4M6 20v-6"/>',
+  calendario:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  clipe:'<path d="M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
+  escudo:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  lixo:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  editar:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  seta:'<path d="M9 18l6-6-6-6"/>'
+};
+const ic = (n, cls) => '<svg class="' + (cls || '') + '" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[n] || '') + '</svg>';
+
+/* =====================================================================
+ * BANCO LOCAL
+ * Lojas: config (chave única), obras, rdos (obraId|data), fotos, docs.
+ * Fotos e documentos guardados como Blob (menor que base64).
+ * Se o IndexedDB faltar, roda em memória e avisa.
+ * ===================================================================== */
+const Banco = {
+  db: null, motor: 'memoria', mem: { config:{}, obras:{}, rdos:{}, fotos:{}, docs:{} },
+
+  abrir() {
+    return new Promise(res => {
+      let req;
+      try { req = indexedDB.open('diario-obras-v2', 1); } catch (e) { return res(this); }
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        ['config','obras','rdos','fotos','docs'].forEach(n => { if (!d.objectStoreNames.contains(n)) d.createObjectStore(n); });
+      };
+      req.onsuccess = () => { this.db = req.result; this.motor = 'indexeddb'; res(this); };
+      req.onerror = req.onblocked = () => res(this);
+    }).then(() => {
+      // pede ao navegador para não apagar estes dados quando faltar espaço
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+      return this;
+    });
+  },
+
+  _op(loja, modo, fn) {
+    if (!this.db) {
+      const m = this.mem[loja];
+      return Promise.resolve(fn({
+        get: k => ({ result: m[k] }), put: (v, k) => { m[k] = v; }, delete: k => { delete m[k]; },
+        getAll: () => ({ result: Object.values(m) }), getAllKeys: () => ({ result: Object.keys(m) }),
+        clear: () => { for (const k in m) delete m[k]; }
+      }, true));
+    }
+    return new Promise((res, rej) => {
+      const t = this.db.transaction(loja, modo);
+      const r = fn(t.objectStore(loja));
+      t.oncomplete = () => res(r && r.result);
+      t.onerror = t.onabort = () => rej(t.error || new Error('Falha ao gravar'));
+    });
+  },
+  ler(loja, k) { return this._op(loja, 'readonly', s => s.get(k)).then(r => r && r.result !== undefined ? r.result : r); },
+  gravar(loja, k, v) { return this._op(loja, 'readwrite', s => { s.put(v, k); }); },
+  apagar(loja, k) { return this._op(loja, 'readwrite', s => { s.delete(k); }); },
+  todos(loja) { return this._op(loja, 'readonly', s => s.getAll()).then(r => (r && r.result) || r || []); },
+  chaves(loja) { return this._op(loja, 'readonly', s => s.getAllKeys()).then(r => (r && r.result) || r || []); },
+  limpar(loja) { return this._op(loja, 'readwrite', s => { s.clear(); }); },
+  espaco() {
+    if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve(null);
+    return navigator.storage.estimate().then(e => ({ usado: e.usage || 0, total: e.quota || 0 })).catch(() => null);
+  }
+};
+
+/* ---- leitura de arquivos e compressão de fotos ---- */
+const lerComo = (arq, modo) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result); r.onerror = () => rej(r.error);
+  modo === 'url' ? r.readAsDataURL(arq) : r.readAsArrayBuffer(arq);
+});
+const blobParaUrl = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
+const urlParaBlob = u => fetch(u).then(r => r.blob());
+
+function comprimirFoto(arq, max) {
+  max = max || 1600;
+  return lerComo(arq, 'url').then(url => new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (Math.max(w, h) > max) { const f = max / Math.max(w, h); w = Math.round(w * f); h = Math.round(h * f); }
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      cv.toBlob(b => b ? res(b) : rej(new Error('Não foi possível processar a foto.')), 'image/jpeg', 0.78);
+    };
+    img.onerror = () => rej(new Error('Arquivo de imagem inválido.'));
+    img.src = url;
+  }));
+}
+
+/* ---- interface: toast, folha, confirmar ---- */
+function toast(msg, ms) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms || 2200);
+}
+function abrirFolha(html, aoMontar) {
+  fecharFolha();
+  const f = document.createElement('div'); f.className = 'fundo'; f.id = 'folha';
+  f.innerHTML = '<div class="folha" role="dialog" aria-modal="true"><div class="alca"></div>' + html + '</div>';
+  f.addEventListener('click', e => { if (e.target === f) fecharFolha(); });
+  document.body.appendChild(f);
+  if (aoMontar) aoMontar(f);
+  return f;
+}
+function fecharFolha() { const f = $('#folha'); if (f) f.remove(); }
+function confirmar(titulo, texto, rotulo, perigo) {
+  return new Promise(res => {
+    abrirFolha('<h3>' + esc(titulo) + '</h3><p style="color:var(--tinta2);margin:0 0 16px">' + esc(texto) + '</p>' +
+      '<div style="display:flex;gap:9px"><button class="btn sec" style="flex:1" data-r="0">Cancelar</button>' +
+      '<button class="btn ' + (perigo ? 'pri' : 'verde') + '" style="flex:1" data-r="1">' + esc(rotulo || 'Confirmar') + '</button></div>',
+      f => f.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { fecharFolha(); res(b.dataset.r === '1'); }));
+  });
+}
+function baixarArquivo(nome, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* =====================================================================
+ * LISTAS — tudo que dá para escolher em vez de digitar
+ * ===================================================================== */
+const FUNCOES = ['Engenheiro civil','Técnico em segurança','Mestre de obras','Contramestre','Encarregado',
+  'Almoxarife','Apontador','Topógrafo','Ajudante de topógrafo','Pedreiro','Meio oficial','Servente',
+  'Carpinteiro','Armador','Encarregado de armação','Eletricista','Ajudante de elétrica','Encanador',
+  'Ajudante de encanador','Pintor','Ajudante de pintor','Gesseiro','Azulejista','Granitina',
+  'Instalador de esquadrias','Montador de andaime','Ajudante de concreto','Soldador','Impermeabilizador',
+  'Operador de retroescavadeira','Operador Bobcat','Operador de bomba','Operador de munck',
+  'Operador de guindaste','Operador de máq. de fundação','Motorista','Vigia','Zelador'];
+
+const EQUIPE_PADRAO = ['Mestre de obras','Pedreiro','Servente','Carpinteiro','Armador','Eletricista','Encanador'];
+
+const EQUIPAMENTOS = ['Betoneira','Vibrador de imersão','Serra circular','Policorte','Martelete',
+  'Furadeira/parafusadeira','Andaime (conjunto)','Guincho de coluna','Elevador cremalheira','Grua',
+  'Bomba de concreto','Caminhão munck','Caminhão basculante','Retroescavadeira','Escavadeira','Bobcat',
+  'Rolo compactador','Compactador (sapo)','Gerador','Empilhadeira','Máquina de fundação'];
+
+const EQUIP_PADRAO = ['Betoneira','Vibrador de imersão','Serra circular','Andaime (conjunto)'];
+
+const FRENTES = ['Canteiro e serviços preliminares','Demolição','Terraplenagem','Fundação','Estrutura',
+  'Alvenaria','Cobertura','Impermeabilização','Instalações elétricas','Instalações hidrossanitárias',
+  'Incêndio','Climatização','Esquadrias','Revestimento','Forro','Piso','Pintura','Louças e metais',
+  'Área externa','Limpeza','Outro'];
+
+const STATUS_ATIV = [['iniciada','Iniciada'],['andamento','Em andamento'],['concluida','Concluída'],['parada','Parada']];
+
+const OCORRENCIAS = ['Chuva','Falta de material','Falta de mão de obra','Equipamento quebrado',
+  'Projeto indefinido','Alteração de projeto','Interferência','Retrabalho','Impedimento do contratante',
+  'Acidente','Atraso de fornecedor','Outro'];
+
+const TEMAS_DDS = ['Uso de EPI','Trabalho em altura','Ordem e limpeza','Ferramentas','Riscos elétricos',
+  'Escavações','Andaimes','Movimentação de cargas','Prevenção de incêndio','Primeiros socorros','Outro'];
+
+const MOTIVOS_PARADA = ['Sábado','Domingo','Feriado','Chuva','Falta de material','Falta de frente',
+  'Determinação da fiscalização','Paralisação contratual','Outro'];
+
+const MOTIVOS_VISITA = ['Fiscalização','Medição','Reunião','Vistoria','Entrega de material','Laboratório','Outro'];
+
+const CLIMA = [['bom','Bom','sol'],['nublado','Nublado','nuvem'],['chuva','Chuva','chuva'],['impraticavel','Impraticável','tempestade']];
+
+const TIPOS_DOC = ['Contrato','ART/RRT','Alvará','Projeto','Cronograma','Ordem de serviço','Outro'];
+const DOCS_EXIGIDOS = ['Contrato','ART/RRT'];
+
+/* Seções do diário. Cada obra liga/desliga as suas. */
+const SECOES = [
+  ['clima',        'Expediente e clima',   'sol'],
+  ['maoDeObra',    'Mão de obra',          'pessoas'],
+  ['atividades',   'Serviços do dia',      'lista'],
+  ['equipamentos', 'Equipamentos',         'caminhao'],
+  ['fotos',        'Fotos',                'camera'],
+  ['ocorrencias',  'Ocorrências',          'alerta'],
+  ['seguranca',    'Segurança',            'capacete'],
+  ['materiais',    'Materiais recebidos',  'caixa'],
+  ['visitas',      'Visitas e fiscalização','visita'],
+  ['observacoes',  'Observações',          'texto'],
+  ['assinaturas',  'Assinaturas',          'caneta']
+];
+const SECOES_PADRAO = { clima:true, maoDeObra:true, atividades:true, equipamentos:true, fotos:true,
+  ocorrencias:true, seguranca:true, materiais:false, visitas:false, observacoes:true, assinaturas:true };
+
+/* =====================================================================
+ * APP — estado, navegação e telas gerais
+ * ===================================================================== */
+const App = { config: {}, obras: [], rdos: {}, rota: {}, mes: null };
+
+const chaveRdo = (obraId, data) => obraId + '|' + data;
+const obraPor = id => App.obras.find(o => o.id === id);
+const rdosDa = obraId => Object.values(App.rdos).filter(r => r.obraId === obraId);
+
+function salvarConfig() { return Banco.gravar('config', 'geral', App.config); }
+function salvarObra(o) { return Banco.gravar('obras', o.id, o); }
+
+/* Status de um dia para o calendário */
+function statusDia(obra, iso) {
+  const r = App.rdos[chaveRdo(obra.id, iso)];
+  const hoje = hojeIso();
+  if (iso < obra.inicio) return 'antes';
+  if (r && r.status === 'concluido') return r.clima && r.clima.houve === false ? 'parado' : 'ok';
+  if (r) return 'rasc';
+  return iso < hoje ? 'falta' : (iso === hoje ? 'hoje-vazio' : 'fut');
+}
+function diasFaltando(obra) {
+  const fim = somaDias(hojeIso(), -1); let n = 0;
+  if (!obra.inicio || obra.inicio > fim) return 0;
+  for (let d = obra.inicio; d <= fim; d = somaDias(d, 1)) if (!App.rdos[chaveRdo(obra.id, d)]) n++;
+  return n;
+}
+function prazoDe(obra, iso) {
+  if (!obra.inicio) return null;
+  const dia = difDias(obra.inicio, iso) + 1, total = +obra.prazoDias || 0;
+  return { dia, total, restam: total ? total - dia : null };
+}
+const docsFaltando = obra => DOCS_EXIGIDOS.filter(t => !(obra.docs || []).some(d => d.tipo === t));
+
+/* ---------------- navegação ---------------- */
+function ir(h) { if (location.hash === h) render(); else location.hash = h; }
+window.addEventListener('hashchange', render);
+
+function lerRota() {
+  const p = (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent);
+  if (p[0] === 'config') return { tela: 'config' };
+  if (p[0] === 'obra' && p[1] === 'nova') return { tela: 'obraForm' };
+  if (p[0] === 'obra' && p[2] === 'editar') return { tela: 'obraForm', id: p[1] };
+  if (p[0] === 'obra' && p[2] === 'dia') return { tela: 'rdo', id: p[1], data: p[3] };
+  if (p[0] === 'obra') return { tela: 'obra', id: p[1], aba: p[2] || 'diario' };
+  return { tela: 'inicio' };
+}
+
+function topo(titulo, sub, voltar, direita) {
+  return '<header class="topo">' +
+    (voltar ? '<button class="ic" data-a="voltar" data-h="' + esc(voltar) + '" aria-label="Voltar">' + ic('voltar') + '</button>' : '') +
+    '<h1>' + esc(titulo) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</h1>' + (direita || '') + '</header>';
+}
+
+function render() {
+  fecharFolha();
+  App.rota = lerRota();
+  const r = App.rota;
+  const corpo = $('#app');
+  let html = '';
+  if (r.tela === 'inicio') html = telaInicio();
+  else if (r.tela === 'config') html = telaConfig();
+  else if (r.tela === 'obraForm') html = telaObraForm(r.id);
+  else if (r.tela === 'obra') html = obraPor(r.id) ? telaObra(obraPor(r.id), r.aba) : telaInicio();
+  else if (r.tela === 'rdo') html = obraPor(r.id) ? telaRdo(obraPor(r.id), r.data) : telaInicio();
+  corpo.innerHTML = html;
+  window.scrollTo(0, 0);
+  if (App.aposRender) { const f = App.aposRender; App.aposRender = null; f(); }
+}
+
+/* ---------------- INÍCIO ---------------- */
+function telaInicio() {
+  const ativas = App.obras.filter(o => !o.arquivada);
+  let h = topo(App.config.empresa || 'Diário de Obras', 'Obras em andamento', null,
+    '<button class="ic" data-a="ir" data-h="#/config" aria-label="Configurações">' + ic('config') + '</button>');
+  h += '<main>';
+
+  const dSemCopia = App.config.ultimoBackup ? difDias(App.config.ultimoBackup, hojeIso()) : null;
+  if (Banco.motor !== 'indexeddb')
+    h += '<div class="aviso e">' + ic('alerta') + '<div><b>Este navegador não está guardando os dados.</b> ' +
+      'Abra no Google Chrome ou Edge.</div></div>';
+  else if (ativas.length && (dSemCopia === null || dSemCopia >= 7))
+    h += '<div class="aviso a">' + ic('alerta') + '<div><b>' + (dSemCopia === null ? 'Nenhuma cópia de segurança ainda.' :
+      'Última cópia de segurança há ' + dSemCopia + ' dias.') + '</b> ' +
+      '<a href="#/config" style="color:inherit">Fazer agora</a></div></div>';
+
+  if (!ativas.length) {
+    h += '<div class="cartao vazio">' + ic('predio') + '<h3>Nenhuma obra ainda</h3>' +
+      '<p>Cadastre a primeira obra para começar o diário.</p>' +
+      '<div style="display:flex;flex-direction:column;gap:9px;max-width:320px;margin:18px auto 0">' +
+      '<button class="btn pri" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Cadastrar obra</button>' +
+      '<button class="btn sec" data-a="exemplo">Ver com uma obra de exemplo</button></div></div>';
+  }
+
+  ativas.forEach(o => {
+    const hoje = hojeIso(), st = statusDia(o, hoje), pz = prazoDe(o, hoje), falta = diasFaltando(o);
+    const r = App.rdos[chaveRdo(o.id, hoje)];
+    const pil = st === 'ok' ? '<span class="pilula p-ok">' + ic('ok') + 'Hoje concluído</span>'
+      : st === 'parado' ? '<span class="pilula p-info">Hoje sem expediente</span>'
+      : st === 'rasc' ? '<span class="pilula p-alerta">Hoje em rascunho</span>'
+      : o.inicio > hoje ? '<span class="pilula p-neutro">Começa ' + br(o.inicio) + '</span>'
+      : '<span class="pilula p-neutro">Hoje não iniciado</span>';
+    const pct = pz && pz.total ? Math.min(100, Math.max(0, pz.dia / pz.total * 100)) : 0;
+    h += '<div class="cartao obra">' +
+      '<div class="obra-topo"><div><h3>' + esc(o.nome) + '</h3><div class="sub">' + esc(o.cliente || '—') + '</div></div>' + pil + '</div>' +
+      (pz && pz.total ? '<div class="prazo"><i style="width:' + pct + '%"></i></div>' : '<div style="height:10px"></div>') +
+      '<div class="metricas num">' +
+        (pz && pz.dia > 0 ? '<span><b>' + pz.dia + '</b>' + (pz.total ? ' de ' + pz.total : '') + ' dias</span>' : '') +
+        (pz && pz.restam != null && pz.dia > 0 ? '<span><b>' + pz.restam + '</b> restantes</span>' : '') +
+        '<span><b>' + rdosDa(o.id).filter(x => x.status === 'concluido').length + '</b> diários fechados</span>' +
+        (falta ? '<span style="color:var(--erro)"><b style="color:var(--erro)">' + falta + '</b> dias sem lançamento</span>' : '') +
+      '</div>' +
+      '<div class="obra-acoes">' +
+        '<button class="btn sec" data-a="ir" data-h="#/obra/' + o.id + '/diario">' + ic('calendario') + 'Abrir obra</button>' +
+        (o.inicio <= hoje ? '<button class="btn pri" data-a="ir" data-h="#/obra/' + o.id + '/dia/' + hoje + '">' + ic('caneta') +
+          (r ? 'Continuar hoje' : 'Preencher hoje') + '</button>' : '') +
+      '</div></div>';
+  });
+
+  if (ativas.length) h += '<button class="mais" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Nova obra</button>';
+  const arq = App.obras.filter(o => o.arquivada);
+  if (arq.length) h += '<p style="text-align:center;margin-top:18px;font-size:13.5px;color:var(--tinta2)">' + arq.length +
+    ' obra(s) arquivada(s) — veja em <a href="#/config">Configurações</a></p>';
+  return h + '</main>';
+}
+
+/* ---------------- OBRA (abas) ---------------- */
+function telaObra(o, aba) {
+  const pz = prazoDe(o, hojeIso());
+  let h = topo(o.nome, (o.cliente || '') + (pz && pz.dia > 0 ? ' · dia ' + pz.dia + (pz.total ? ' de ' + pz.total : '') : ''), '#/');
+  const abas = [['diario','Diário'],['fotos','Fotos'],['indicadores','Resumo'],['relatorios','Relatórios'],['cadastro','Obra']];
+  h += '<nav class="abas">' + abas.map(a => '<button class="' + (a[0] === aba ? 'on' : '') + '" data-a="ir" data-h="#/obra/' +
+    o.id + '/' + a[0] + '">' + a[1] + '</button>').join('') + '</nav><main>';
+  if (aba === 'diario') h += abaDiario(o);
+  else if (aba === 'fotos') h += abaFotos(o);
+  else if (aba === 'indicadores') h += abaIndicadores(o);
+  else if (aba === 'relatorios') h += abaRelatorios(o);
+  else h += abaCadastro(o);
+  return h + '</main>';
+}
+
+function abaDiario(o) {
+  let h = '';
+  const falta = docsFaltando(o);
+  if (falta.length) h += '<div class="aviso a">' + ic('clipe') + '<div><b>Falta anexar: ' + esc(falta.join(' e ')) + '.</b> ' +
+    'Anexe na aba <a href="#/obra/' + o.id + '/cadastro" style="color:inherit">Obra</a> para manter a documentação completa.</div></div>';
+
+  if (!App.mes) { const d = new Date(); App.mes = [d.getFullYear(), d.getMonth()]; }
+  const [ano, mes] = App.mes;
+  const prim = new Date(ano, mes, 1), nd = new Date(ano, mes + 1, 0).getDate();
+  const hoje = hojeIso();
+  h += '<div class="cartao"><div class="cal-topo">' +
+    '<button class="btn fant" data-a="mes" data-d="-1" aria-label="Mês anterior">' + ic('voltar') + '</button>' +
+    '<b>' + cap(MESES[mes]) + ' de ' + ano + '</b>' +
+    '<button class="btn fant" data-a="mes" data-d="1" aria-label="Próximo mês" style="transform:scaleX(-1)">' + ic('voltar') + '</button></div>' +
+    '<div class="cal">' + ['D','S','T','Q','Q','S','S'].map(x => '<div class="dow">' + x + '</div>').join('');
+  for (let i = 0; i < prim.getDay(); i++) h += '<div class="dia vz"></div>';
+  for (let d = 1; d <= nd; d++) {
+    const iso = ano + '-' + pad(mes + 1) + '-' + pad(d);
+    const st = statusDia(o, iso);
+    const cls = { ok:'ok', parado:'parado', rasc:'rasc', falta:'falta', fut:'fut', antes:'antes', 'hoje-vazio':'' }[st];
+    const r = App.rdos[chaveRdo(o.id, iso)];
+    const temFoto = r && r.fotos && r.fotos.length;
+    const clicavel = st !== 'fut' && st !== 'antes';
+    h += '<button class="dia ' + cls + (iso === hoje ? ' hoje' : '') + '" ' +
+      (clicavel ? 'data-a="ir" data-h="#/obra/' + o.id + '/dia/' + iso + '"' : 'disabled') + ' aria-label="' + br(iso) + '">' +
+      (temFoto ? ic('camera', 'cam') : '') + '<span class="num">' + d + '</span></button>';
+  }
+  h += '</div><div class="legenda">' +
+    [['var(--ok-s)','fechado'],['var(--info-s)','sem expediente'],['var(--alerta-s)','rascunho'],['var(--erro-s)','sem lançamento']]
+      .map(l => '<span><i style="background:' + l[0] + '"></i>' + l[1] + '</span>').join('') + '</div></div>';
+
+  // últimos lançamentos
+  const ult = rdosDa(o.id).sort((a, b) => b.data < a.data ? -1 : 1).slice(0, 6);
+  if (ult.length) {
+    h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('relogio') + '</div><h2>Últimos lançamentos</h2></div><div class="cartao-corpo">';
+    ult.forEach(r => {
+      const tot = totalMao(r);
+      h += '<button class="item" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px" data-a="ir" data-h="#/obra/' + o.id + '/dia/' + r.data + '">' +
+        '<div style="flex:1;min-width:0"><b>' + cap(extenso(r.data)) + '</b><div style="font-size:13px;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+        (r.clima && r.clima.houve === false ? 'Sem expediente — ' + esc(r.clima.motivo || '') :
+          tot + ' trabalhadores · ' + (r.atividades || []).length + ' serviço(s) · ' + (r.fotos || []).length + ' foto(s)') + '</div></div>' +
+        (r.status === 'concluido' ? '<span class="pilula p-ok">Fechado</span>' : '<span class="pilula p-alerta">Rascunho</span>') + '</button>';
+    });
+    h += '</div></div>';
+  }
+  return h;
+}
+
+/* ---------------- FOTOS da obra ---------------- */
+function abaFotos(o) {
+  const dias = rdosDa(o.id).filter(r => (r.fotos || []).length).sort((a, b) => b.data < a.data ? -1 : 1);
+  if (!dias.length) return '<div class="cartao vazio">' + ic('galeria') + '<h3>Nenhuma foto ainda</h3><p>As fotos tiradas no diário aparecem aqui, organizadas por dia.</p></div>';
+  App.aposRender = carregarMiniaturas;
+  return dias.map(r => '<div class="cartao"><div class="cartao-cab"><h2>' + cap(extenso(r.data)) + '</h2>' +
+    '<span class="pilula p-neutro">' + r.fotos.length + '</span></div><div class="cartao-corpo"><div class="galeria">' +
+    r.fotos.map(f => '<button class="foto" data-a="verFoto" data-id="' + f.id + '" data-leg="' + esc(f.legenda || '') + '">' +
+      '<img data-foto="' + f.id + '" alt="' + esc(f.legenda || 'foto') + '">' + (f.legenda ? '<span class="leg">' + esc(f.legenda) + '</span>' : '') + '</button>').join('') +
+    '</div></div></div>').join('');
+}
+const _urls = {};
+function urlFoto(id) {
+  if (_urls[id]) return Promise.resolve(_urls[id]);
+  return Banco.ler('fotos', id).then(f => f && f.blob ? (_urls[id] = URL.createObjectURL(f.blob)) : '');
+}
+function carregarMiniaturas() {
+  document.querySelectorAll('img[data-foto]').forEach(img => urlFoto(img.dataset.foto).then(u => { if (u) img.src = u; }));
+}
+
+/* ---------------- INDICADORES ---------------- */
+function abaIndicadores(o) {
+  const rs = rdosDa(o.id);
+  if (!rs.length) return '<div class="cartao vazio">' + ic('grafico') + '<h3>Sem dados ainda</h3><p>Os indicadores aparecem conforme o diário é preenchido.</p></div>';
+  const trab = rs.filter(r => !r.clima || r.clima.houve !== false);
+  const chuva = rs.filter(r => r.clima && (r.clima.manha === 'chuva' || r.clima.tarde === 'chuva' ||
+    r.clima.manha === 'impraticavel' || r.clima.tarde === 'impraticavel' || r.clima.motivo === 'Chuva')).length;
+  const efs = trab.map(totalMao).filter(n => n > 0);
+  const media = efs.length ? Math.round(efs.reduce((a, b) => a + b, 0) / efs.length) : 0;
+  const ocor = rs.reduce((n, r) => n + (r.ocorrencias || []).length, 0);
+  const impacto = rs.reduce((n, r) => n + (r.ocorrencias || []).reduce((m, x) => m + (+x.impacto || 0), 0), 0);
+  const fotos = rs.reduce((n, r) => n + (r.fotos || []).length, 0);
+  const pz = prazoDe(o, hojeIso());
+  const falta = diasFaltando(o);
+  let h = '<div class="kpis">' +
+    kpi(rs.filter(r => r.status === 'concluido').length, 'diários fechados') +
+    kpi(falta, 'dias sem lançamento', falta ? 'var(--erro)' : '') +
+    kpi(media, 'efetivo médio por dia') +
+    kpi(chuva, 'dias com chuva') +
+    kpi(ocor, 'ocorrências') +
+    kpi(impacto, 'dias de impacto no prazo', impacto ? 'var(--alerta)' : '') +
+    kpi(fotos, 'fotos') +
+    kpi(pz && pz.restam != null ? pz.restam : '—', 'dias de prazo restantes') + '</div>';
+
+  // efetivo dos últimos 14 dias
+  const ult = []; for (let i = 13; i >= 0; i--) ult.push(somaDias(hojeIso(), -i));
+  const vals = ult.map(d => { const r = App.rdos[chaveRdo(o.id, d)]; return r ? totalMao(r) : 0; });
+  const mx = Math.max(1, ...vals);
+  h += '<div class="cartao" style="margin-top:12px"><div class="cartao-cab"><div class="ico">' + ic('pessoas') + '</div><h2>Efetivo — últimos 14 dias</h2></div>' +
+    '<div class="cartao-corpo"><div class="barras">' + vals.map((v, i) => '<div title="' + br(ult[i]) + ': ' + v + '">' +
+      '<small class="num">' + (v || '') + '</small><i style="height:' + (v / mx * 88) + '%;' + (v ? '' : 'background:var(--linha);height:3px') + '"></i>' +
+      '<small>' + dataDe(ult[i]).getDate() + '</small></div>').join('') + '</div></div></div>';
+
+  // frentes mais trabalhadas
+  const fr = {};
+  rs.forEach(r => (r.atividades || []).forEach(a => { if (a.frente) fr[a.frente] = (fr[a.frente] || 0) + 1; }));
+  const top = Object.entries(fr).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (top.length) {
+    const m2 = top[0][1];
+    h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('lista') + '</div><h2>Frentes com mais dias de serviço</h2></div><div class="cartao-corpo">' +
+      top.map(([n, v]) => '<div style="display:flex;align-items:center;gap:10px;margin:7px 0"><span style="width:44%;font-size:14px">' + esc(n) +
+        '</span><span style="flex:1;height:10px;background:var(--sup2);border-radius:9px;overflow:hidden"><i style="display:block;height:100%;width:' +
+        (v / m2 * 100) + '%;background:var(--acao)"></i></span><b class="num" style="width:28px;text-align:right">' + v + '</b></div>').join('') + '</div></div>';
+  }
+  return h;
+}
+const kpi = (v, t, cor) => '<div class="kpi"><b' + (cor ? ' style="color:' + cor + '"' : '') + '>' + v + '</b><span>' + t + '</span></div>';
+
+/* ---------------- CADASTRO DA OBRA (aba) ---------------- */
+function abaCadastro(o) {
+  let h = '<div class="grade2">';
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('predio') + '</div><h2>Dados da obra</h2>' +
+    '<button class="btn fant" data-a="ir" data-h="#/obra/' + o.id + '/editar">' + ic('editar') + 'Editar</button></div><div class="cartao-corpo">' +
+    [['Contratante', o.cliente], ['Endereço', o.endereco], ['Cidade', o.cidade], ['Contrato', o.contrato], ['ART/RRT', o.art],
+     ['Início', br(o.inicio)], ['Prazo', o.prazoDias ? o.prazoDias + ' dias' : ''], ['Fiscal', o.fiscalNome]]
+      .map(x => '<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #edf0f3;font-size:14.5px"><span style="width:96px;color:var(--tinta2)">' +
+        x[0] + '</span><b style="flex:1;font-weight:550">' + esc(x[1] || '—') + '</b></div>').join('') + '</div></div>';
+
+  // documentos
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('clipe') + '</div><h2>Documentos</h2></div><div class="cartao-corpo">';
+  (o.docs || []).forEach(d => {
+    h += '<div class="item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><b style="font-size:14px">' + esc(d.tipo) + '</b>' +
+      '<div style="font-size:12.5px;color:var(--tinta2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.nome) + '</div></div>' +
+      '<button class="btn fant" data-a="abrirDoc" data-id="' + d.id + '">Abrir</button>' +
+      '<button class="x" data-a="apagarDoc" data-id="' + d.id + '" aria-label="Remover">' + ic('lixo') + '</button></div>';
+  });
+  const falta = docsFaltando(o);
+  if (falta.length) h += '<p class="dica">' + ic('alerta') + 'Faltam: ' + esc(falta.join(', ')) + '</p>';
+  h += '<label class="rot">Anexar documento</label><select class="campo" id="docTipo">' +
+    TIPOS_DOC.map(t => '<option' + (t === falta[0] ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Escolher arquivo' +
+    '<input type="file" hidden data-c="anexarDoc"></label></div></div>';
+
+  // equipe e equipamentos padrão
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pessoas') + '</div><h2>Equipe padrão</h2></div><div class="cartao-corpo">' +
+    '<p class="dica" style="margin:0 0 10px">Essas funções aparecem prontas todo dia — o engenheiro só ajusta a quantidade.</p>' +
+    '<div class="chips">' + FUNCOES.map(f => '<button class="chip ' + ((o.equipePadrao || []).includes(f) ? 'on' : '') +
+      '" data-a="toggleLista" data-campo="equipePadrao" data-v="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div></div></div>';
+
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('caminhao') + '</div><h2>Equipamentos padrão</h2></div><div class="cartao-corpo">' +
+    '<div class="chips">' + EQUIPAMENTOS.map(f => '<button class="chip ' + ((o.equipPadrao || []).includes(f) ? 'on' : '') +
+      '" data-a="toggleLista" data-campo="equipPadrao" data-v="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div></div></div>';
+
+  // seções
+  const sec = Object.assign({}, SECOES_PADRAO, o.secoes || {});
+  h += '<div class="cartao larga"><div class="cartao-cab"><div class="ico">' + ic('lista') + '</div><h2>O que entra no diário desta obra</h2></div>' +
+    '<div class="cartao-corpo lista-sec"><p class="dica" style="margin:0 0 4px">Desligue o que esta obra não precisa. O diário fica mais curto.</p>' +
+    SECOES.map(s => '<div class="linha"><span>' + s[1] + '</span>' +
+      (s[0] === 'clima' ? '<span class="pilula p-neutro">sempre</span>' :
+        '<button class="interruptor ' + (sec[s[0]] ? 'on' : '') + '" data-a="toggleSecao" data-s="' + s[0] + '" aria-label="' + s[1] + '"></button>') +
+      '</div>').join('') + '</div></div>';
+
+  h += '<div class="larga" style="display:flex;gap:9px;flex-wrap:wrap">' +
+    '<button class="btn sec" data-a="arquivarObra">' + (o.arquivada ? 'Desarquivar obra' : 'Arquivar obra') + '</button>' +
+    '<button class="btn fant" style="color:var(--erro)" data-a="excluirObra">' + ic('lixo') + 'Excluir obra</button></div>';
+  return h + '</div>';
+}
+
+/* ---------------- FORMULÁRIO DA OBRA ---------------- */
+function telaObraForm(id) {
+  const o = id ? obraPor(id) : { inicio: hojeIso(), turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30', tipo: 'Edificação nova' };
+  const c = (k, rot, tipo, ph) => '<label class="rot">' + rot + '</label><input class="campo" name="' + k + '" type="' + (tipo || 'text') +
+    '" value="' + esc(o[k] || '') + '" placeholder="' + esc(ph || '') + '">';
+  let h = topo(id ? 'Editar obra' : 'Nova obra', '', id ? '#/obra/' + id + '/cadastro' : '#/');
+  h += '<main><form id="formObra" class="cartao" style="padding:4px 15px 16px" onsubmit="return false">' +
+    c('nome', 'Nome da obra *', 'text', 'Ex.: Fórum da Comarca de Iporã') +
+    '<label class="rot">Tipo</label><div class="chips" id="tipoObra">' + ['Edificação nova','Reforma','Ampliação'].map(t =>
+      '<button type="button" class="chip ' + (o.tipo === t ? 'on' : '') + '" data-a="tipoObra" data-v="' + t + '">' + t + '</button>').join('') + '</div>' +
+    c('cliente', 'Contratante', 'text', 'Ex.: Tribunal de Justiça do Paraná') +
+    c('endereco', 'Endereço') + c('cidade', 'Cidade / UF', 'text', 'Ex.: Iporã, PR — usado para o clima automático') +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('contrato', 'Nº do contrato') + '</div><div>' + c('art', 'Nº ART/RRT') + '</div></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('inicio', 'Início da obra *', 'date') + '</div><div>' +
+      c('prazoDias', 'Prazo (dias corridos)', 'number', '365') + '</div></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('fiscalNome', 'Fiscal do contrato') + '</div><div>' + c('fiscalCargo', 'Cargo / órgão') + '</div></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('turnoManha', 'Turno manhã') + '</div><div>' + c('turnoTarde', 'Turno tarde') + '</div></div>' +
+    '<input type="hidden" name="tipo" value="' + esc(o.tipo || 'Edificação nova') + '">' +
+    '</form></main><div class="barra-acao"><div class="dentro"><button class="btn pri" data-a="salvarObra" data-id="' + (id || '') + '">' +
+    ic('ok') + (id ? 'Salvar alterações' : 'Cadastrar obra') + '</button></div></div>';
+  return h;
+}
+
+/* ---------------- CONFIGURAÇÕES ---------------- */
+function telaConfig() {
+  const c = App.config;
+  let h = topo('Configurações', '', '#/') + '<main><div class="grade2">';
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('predio') + '</div><h2>Empresa</h2></div><div class="cartao-corpo">' +
+    '<label class="rot">Nome da construtora (sai no PDF)</label><input class="campo" data-c="cfg" data-k="empresa" value="' + esc(c.empresa || '') + '">' +
+    '<label class="rot">CNPJ</label><input class="campo" data-c="cfg" data-k="cnpj" value="' + esc(c.cnpj || '') + '">' +
+    '<label class="rot">Responsável técnico padrão</label><input class="campo" data-c="cfg" data-k="responsavel" value="' + esc(c.responsavel || '') + '">' +
+    '<label class="rot">CREA/CAU</label><input class="campo" data-c="cfg" data-k="crea" value="' + esc(c.crea || '') + '">' +
+    '<label class="rot">Logo (sai no cabeçalho do PDF)</label>' +
+    (c.logo ? '<img src="' + c.logo + '" alt="logo" style="max-height:64px;max-width:200px;display:block;margin-bottom:8px;border:1px solid var(--linha);border-radius:8px;padding:4px;background:#fff">' : '') +
+    '<label class="btn sec cheio">' + ic('subir') + (c.logo ? 'Trocar logo' : 'Enviar logo') + '<input type="file" accept="image/*" hidden data-c="logo"></label></div></div>';
+
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('escudo') + '</div><h2>Cópia de segurança</h2></div><div class="cartao-corpo">' +
+    '<p style="font-size:14px;color:var(--tinta2);margin:0 0 10px">Os dados ficam só neste aparelho. Salve uma cópia toda semana e guarde fora dele ' +
+    '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.</p>' +
+    '<p style="font-size:13.5px;margin:0 0 12px"><b>Última cópia:</b> ' + (c.ultimoBackup ? br(c.ultimoBackup) : 'nunca') + '</p>' +
+    '<button class="btn pri cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button>' +
+    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label></div></div>';
+
+  h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('config') + '</div><h2>Este aparelho</h2></div><div class="cartao-corpo" id="diag">' +
+    '<p style="font-size:14px;margin:0 0 6px"><b>Guardando em:</b> ' + (Banco.motor === 'indexeddb' ? 'banco do navegador (IndexedDB)' : '<span style="color:var(--erro)">somente memória — não salva</span>') + '</p>' +
+    '<p style="font-size:14px;margin:0 0 12px" id="espaco">Calculando espaço…</p>' +
+    '<button class="btn sec cheio" data-a="testar">Testar este aparelho</button></div></div>';
+
+  const arq = App.obras.filter(o => o.arquivada);
+  if (arq.length) h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('caixa') + '</div><h2>Obras arquivadas</h2></div><div class="cartao-corpo">' +
+    arq.map(o => '<button class="item" style="width:100%;text-align:left" data-a="ir" data-h="#/obra/' + o.id + '/diario"><b>' + esc(o.nome) + '</b></button>').join('') + '</div></div>';
+
+  App.aposRender = () => Banco.espaco().then(e => {
+    const el = $('#espaco'); if (!el) return;
+    el.innerHTML = e ? '<b>Espaço:</b> ' + mb(e.usado) + ' usados de ' + mb(e.total) + ' disponíveis' : '<b>Espaço:</b> não informado pelo navegador';
+  });
+  return h + '</div></main>';
+}
+
+/* =====================================================================
+ * RDO — o diário do dia, numa página só, salvando sozinho
+ * ===================================================================== */
+const totalMao = r => {
+  let t = 0;
+  Object.values((r && r.maoDeObra) || {}).forEach(v => t += +v || 0);
+  ((r && r.terceiros) || []).forEach(x => t += +x.qtd || 0);
+  return t;
+};
+
+function novoRdo(o, data) {
+  const mao = {}; (o.equipePadrao || EQUIPE_PADRAO).forEach(f => mao[f] = 0);
+  const eq = {}; (o.equipPadrao || EQUIP_PADRAO).forEach(f => eq[f] = 0);
+  return { obraId: o.id, data, status: 'rascunho', criadoEm: new Date().toISOString(),
+    clima: { houve: true, motivo: '', manha: '', tarde: '', horasParadas: 0, chuvaMm: null },
+    maoDeObra: mao, terceiros: [], atividades: [], equipamentos: eq, fotos: [], ocorrencias: [],
+    seguranca: { dds: null, tema: '', acidente: null, descAcidente: '' }, materiais: [], visitas: [],
+    observacoes: '', assinaturas: { responsavel: { nome: App.config.responsavel || '', img: '' },
+      fiscal: { nome: o.fiscalNome || '', img: '' } }, nada: {} };
+}
+
+function secoesVisiveis(o, r) {
+  const ativas = Object.assign({}, SECOES_PADRAO, o.secoes || {});
+  return SECOES.filter(s => {
+    if (s[0] !== 'clima' && !ativas[s[0]]) return false;
+    if (r.clima.houve === false) return ['clima', 'fotos', 'observacoes', 'assinaturas'].includes(s[0]);
+    return true;
+  }).map(s => s[0]);
+}
+
+function preenchida(sec, r) {
+  const n = r.nada || {};
+  switch (sec) {
+    case 'clima': return r.clima.houve === false ? !!r.clima.motivo : !!(r.clima.manha && r.clima.tarde);
+    case 'maoDeObra': return totalMao(r) > 0;
+    case 'atividades': return r.atividades.some(a => (a.descricao || '').trim() || a.frente);
+    case 'equipamentos': return n.equipamentos || Object.values(r.equipamentos).some(v => v > 0);
+    case 'fotos': return n.fotos || r.fotos.length > 0;
+    case 'ocorrencias': return n.ocorrencias || r.ocorrencias.length > 0;
+    case 'seguranca': return r.seguranca.dds !== null && r.seguranca.acidente !== null;
+    case 'materiais': return n.materiais || r.materiais.length > 0;
+    case 'visitas': return n.visitas || r.visitas.length > 0;
+    case 'observacoes': return n.observacoes || !!(r.observacoes || '').trim();
+    case 'assinaturas': return !!(r.assinaturas.responsavel && r.assinaturas.responsavel.img);
+  }
+  return false;
+}
+
+/* ---------------- a tela ---------------- */
+function telaRdo(o, data) {
+  const k = chaveRdo(o.id, data);
+  const r = App.rdos[k] ? JSON.parse(JSON.stringify(App.rdos[k])) : novoRdo(o, data);
+  r.nada = r.nada || {};
+  App.rdoAtual = r; App.obraAtual = o;
+  const pz = prazoDe(o, data);
+  let h = topo(cap(extenso(data)), o.nome + (pz ? ' · dia ' + pz.dia + (pz.total ? ' de ' + pz.total : '') : ''),
+    '#/obra/' + o.id + '/diario', '<span class="salvo" id="salvo">' + (App.rdos[k] ? 'Salvo' : '') + '</span>');
+  h += '<main>';
+
+  if (r.status === 'concluido')
+    h += '<div class="aviso o">' + ic('ok') + '<div><b>Diário fechado' + (r.concluidoEm ? ' em ' + br(r.concluidoEm.slice(0, 10)) : '') +
+      '.</b> Você ainda pode corrigir; a alteração fica registrada.</div></div>';
+
+  // atalho: copiar do último dia
+  const vazio = !App.rdos[k] || (totalMao(r) === 0 && !r.atividades.length);
+  if (vazio) {
+    const ant = rdosDa(o.id).filter(x => x.data < data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
+    if (ant) h += '<button class="cartao" data-a="copiarAnterior" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 15px;text-align:left;border-color:var(--acao)">' +
+      '<span class="ico" style="width:40px;height:40px;border-radius:11px;background:var(--acao-suave);color:var(--acao);display:grid;place-items:center;flex:none">' + ic('copiar') + '</span>' +
+      '<span style="flex:1"><b style="display:block">Começar copiando ' + br(ant.data) + '</b><span style="font-size:13px;color:var(--tinta2)">' +
+      'Traz equipe, equipamentos e os serviços que ficaram em andamento</span></span>' + ic('seta') + '</button>';
+  }
+
+  h += '<div class="grade2" id="cartoes">' + secoesVisiveis(o, r).map(s => cartao(s, r, o)).join('') + '</div>';
+  h += '</main>' + barraRdo(o, r);
+  App.aposRender = () => { carregarMiniaturas(); montarAssinaturas(); };
+  return h;
+}
+
+function barraRdo(o, r) {
+  const vis = secoesVisiveis(o, r), ok = vis.filter(s => preenchida(s, r)).length;
+  return '<div class="barra-acao"><div class="dentro">' +
+    '<div class="progresso" id="prog"><b class="num">' + ok + '/' + vis.length + '</b>blocos</div>' +
+    '<button class="btn ' + (ok === vis.length ? 'verde' : 'pri') + '" data-a="concluir" id="btConcluir">' + ic('ok') +
+    (r.status === 'concluido' ? 'Salvar e fechar' : 'Concluir o dia') + '</button></div></div>';
+}
+
+function cartao(sec, r, o) {
+  const def = SECOES.find(s => s[0] === sec);
+  const ok = preenchida(sec, r);
+  return '<section class="cartao' + (['atividades','fotos','observacoes'].includes(sec) ? ' larga' : '') + '" id="c-' + sec + '">' +
+    '<div class="cartao-cab"><div class="ico">' + ic(def[2]) + '</div><h2>' + def[1] +
+    '<span class="resumo">' + esc(resumoSecao(sec, r)) + '</span></h2>' +
+    (ok ? '<span class="marca-ok" title="preenchido">' + ic('ok') + '</span>' : '<span class="marca-vazia" title="não preenchido"></span>') +
+    '</div><div class="cartao-corpo">' + corpoSecao(sec, r, o) + '</div></section>';
+}
+
+function resumoSecao(sec, r) {
+  const n = r.nada || {};
+  switch (sec) {
+    case 'clima': return r.clima.houve === false ? 'Sem expediente' + (r.clima.motivo ? ' — ' + r.clima.motivo : '') :
+      [r.clima.manha && 'manhã: ' + rotClima(r.clima.manha), r.clima.tarde && 'tarde: ' + rotClima(r.clima.tarde)].filter(Boolean).join(' · ');
+    case 'maoDeObra': { const t = totalMao(r); return t ? t + ' trabalhador' + (t > 1 ? 'es' : '') : ''; }
+    case 'atividades': return r.atividades.length ? r.atividades.length + ' serviço(s)' : '';
+    case 'equipamentos': { const t = Object.values(r.equipamentos).reduce((a, b) => a + (+b || 0), 0); return t ? t + ' em uso' : n.equipamentos ? 'nenhum hoje' : ''; }
+    case 'fotos': return r.fotos.length ? r.fotos.length + ' foto(s)' : n.fotos ? 'sem fotos hoje' : '';
+    case 'ocorrencias': return r.ocorrencias.length ? r.ocorrencias.length + ' registrada(s)' : n.ocorrencias ? 'nenhuma' : '';
+    case 'seguranca': return [r.seguranca.dds === true ? 'DDS feito' : r.seguranca.dds === false ? 'sem DDS' : '',
+      r.seguranca.acidente === true ? 'COM acidente' : r.seguranca.acidente === false ? 'sem acidente' : ''].filter(Boolean).join(' · ');
+    case 'materiais': return r.materiais.length ? r.materiais.length + ' recebimento(s)' : n.materiais ? 'nenhum' : '';
+    case 'visitas': return r.visitas.length ? r.visitas.length + ' visita(s)' : n.visitas ? 'nenhuma' : '';
+    case 'observacoes': return (r.observacoes || '').trim() ? 'preenchido' : n.observacoes ? 'nada a observar' : '';
+    case 'assinaturas': return r.assinaturas.responsavel.img ? 'assinado' + (r.assinaturas.fiscal.img ? ' (com fiscal)' : '') : '';
+  }
+  return '';
+}
+const rotClima = v => (CLIMA.find(c => c[0] === v) || [, ''])[1];
+
+const botaoNada = (sec, r, txt) => (r.nada || {})[sec]
+  ? '<button class="chip on" data-a="nada" data-sec="' + sec + '" style="margin-top:9px">' + ic('ok') + txt + '</button>'
+  : '<button class="chip" data-a="nada" data-sec="' + sec + '" style="margin-top:9px">' + txt + '</button>';
+
+function passo(acao, chave, v, extra) {
+  return '<div class="passo"><button data-a="' + acao + '" data-k="' + esc(chave) + '" data-d="-1"' + (extra || '') + ' aria-label="menos">−</button>' +
+    '<span class="num">' + (v || 0) + '</span><button data-a="' + acao + '" data-k="' + esc(chave) + '" data-d="1"' + (extra || '') + ' aria-label="mais">+</button></div>';
+}
+
+const seletor = (acao, id, valor, vazio) => '<button class="seletor' + (valor ? '' : ' vazio') + '" data-a="' + acao + '" data-id="' + id + '">' +
+  '<span>' + esc(valor || vazio) + '</span>' + ic('seta') + '</button>';
+
+function corpoSecao(sec, r, o) {
+  const n = r.nada || {};
+  switch (sec) {
+  case 'clima': {
+    let h = '<div class="seg" style="margin-bottom:12px">' +
+      '<button class="' + (r.clima.houve !== false ? 'on sim' : '') + '" data-a="houve" data-v="1">' + ic('capacete') + 'Teve trabalho</button>' +
+      '<button class="' + (r.clima.houve === false ? 'on nao' : '') + '" data-a="houve" data-v="0">' + ic('x') + 'Não teve</button></div>';
+    if (r.clima.houve === false) {
+      return h + '<label class="rot">Motivo</label><div class="chips">' + MOTIVOS_PARADA.map(m =>
+        '<button class="chip ' + (r.clima.motivo === m ? 'on' : '') + '" data-a="motivo" data-v="' + m + '">' + m + '</button>').join('') + '</div>';
+    }
+    ['manha', 'tarde'].forEach(t => {
+      h += '<label class="rot">' + (t === 'manha' ? 'Manhã' : 'Tarde') + '</label><div class="seg">' +
+        CLIMA.map(c => '<button class="' + (r.clima[t] === c[0] ? 'on' : '') + '" data-a="clima" data-t="' + t + '" data-v="' + c[0] + '">' +
+          ic(c[2]) + c[1] + '</button>').join('') + '</div>';
+    });
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-top:12px"><span style="flex:1;font-size:14.5px">Horas paradas por chuva</span>' +
+      passo('horas', 'h', r.clima.horasParadas) + '</div>';
+    if (r.clima.chuvaMm != null) h += '<p class="dica">' + ic('chuva') + 'Chuva registrada no dia: ' + String(r.clima.chuvaMm).replace('.', ',') + ' mm</p>';
+    h += '<button class="btn fant" data-a="climaAuto" style="margin-top:6px;padding-left:0">' + ic('local') +
+      (o.cidade ? 'Buscar o clima de ' + esc(o.cidade) : 'Clima automático (cadastre a cidade da obra)') + '</button>';
+    return h;
+  }
+  case 'maoDeObra': {
+    const funcs = Object.keys(r.maoDeObra);
+    let h = funcs.map(f => '<div class="linha-qtd' + (r.maoDeObra[f] ? '' : ' zero') + '"><span class="nome">' + esc(f) + '</span>' +
+      passo('mao', f, r.maoDeObra[f]) + '</div>').join('');
+    h += '<button class="mais" style="margin-top:10px" data-a="addFuncao">' + ic('mais') + 'Outra função</button>';
+    if (r.terceiros.length) {
+      h += '<label class="rot">Terceirizados</label>' + r.terceiros.map(t => '<div class="item"><div class="item-topo"><b>' + esc(t.empresa || 'Empresa') + '</b>' +
+        '<button class="x" data-a="rmLista" data-lista="terceiros" data-id="' + t.id + '">' + ic('x') + '</button></div>' +
+        '<input class="campo" placeholder="Empresa" value="' + esc(t.empresa) + '" data-c="campoLista" data-lista="terceiros" data-id="' + t.id + '" data-k="empresa">' +
+        '<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="campo" placeholder="Serviço" value="' + esc(t.servico) +
+        '" data-c="campoLista" data-lista="terceiros" data-id="' + t.id + '" data-k="servico">' +
+        passo('terc', t.id, t.qtd) + '</div></div>').join('');
+    }
+    h += '<button class="mais" style="margin-top:8px" data-a="addTerceiro">' + ic('mais') + 'Empresa terceirizada</button>';
+    h += '<div class="total"><span>Total no canteiro</span><span class="num">' + totalMao(r) + '</span></div>';
+    return h;
+  }
+  case 'atividades': {
+    let h = r.atividades.map((a, i) => '<div class="item"><div class="item-topo"><b>Serviço ' + (i + 1) + '</b>' +
+      '<button class="x" data-a="rmLista" data-lista="atividades" data-id="' + a.id + '" aria-label="Remover">' + ic('x') + '</button></div>' +
+      seletor('frente', a.id, a.frente, 'Escolher a frente de serviço') +
+      '<textarea class="campo" style="min-height:70px" placeholder="O que foi feito (ex.: alvenaria do bloco A, 1º pavimento)" data-c="campoLista" data-lista="atividades" data-id="' +
+        a.id + '" data-k="descricao">' + esc(a.descricao) + '</textarea>' +
+      '<div class="seg" style="margin-top:8px">' + STATUS_ATIV.map(s => '<button class="' + (a.status === s[0] ? 'on' : '') +
+        '" data-a="statusAtiv" data-id="' + a.id + '" data-v="' + s[0] + '" style="font-size:12.5px;padding:8px 2px">' + s[1] + '</button>').join('') + '</div></div>').join('');
+    h += '<button class="mais" data-a="addAtividade">' + ic('mais') + 'Adicionar serviço</button>';
+    h += '<p class="dica">' + ic('mic') + 'No celular, toque no microfone do teclado para ditar em vez de digitar.</p>';
+    return h;
+  }
+  case 'equipamentos': {
+    let h = Object.keys(r.equipamentos).map(e => '<div class="linha-qtd' + (r.equipamentos[e] ? '' : ' zero') + '"><span class="nome">' + esc(e) + '</span>' +
+      passo('equip', e, r.equipamentos[e]) + '</div>').join('');
+    h += '<button class="mais" style="margin-top:10px" data-a="addEquip">' + ic('mais') + 'Outro equipamento</button>';
+    if (!Object.values(r.equipamentos).some(v => v > 0)) h += botaoNada('equipamentos', r, 'Nenhum equipamento hoje');
+    return h;
+  }
+  case 'fotos': {
+    let h = '<div class="camera"><label class="btn pri">' + ic('camera') + 'Tirar foto<input type="file" accept="image/*" capture="environment" multiple data-c="foto"></label>' +
+      '<label class="btn sec">' + ic('galeria') + 'Da galeria<input type="file" accept="image/*" multiple data-c="foto"></label></div>';
+    h += '<div id="fotoStatus"></div>';
+    if (r.fotos.length) h += '<div class="galeria">' + r.fotos.map(f => '<button class="foto" data-a="editarFoto" data-id="' + f.id + '">' +
+      '<img data-foto="' + f.id + '" alt="' + esc(f.legenda || 'foto') + '"><span class="leg">' + esc(f.legenda || 'toque para legendar') + '</span></button>').join('') + '</div>';
+    else h += botaoNada('fotos', r, 'Sem fotos hoje');
+    return h;
+  }
+  case 'ocorrencias': {
+    let h = r.ocorrencias.map(x => '<div class="item"><div class="item-topo"><b>' + esc(x.tipo || 'Ocorrência') + '</b>' +
+      '<button class="x" data-a="rmLista" data-lista="ocorrencias" data-id="' + x.id + '">' + ic('x') + '</button></div>' +
+      seletor('tipoOcor', x.id, x.tipo, 'Escolher o tipo de ocorrência') +
+      '<textarea class="campo" style="min-height:64px" placeholder="O que aconteceu e o que foi feito" data-c="campoLista" data-lista="ocorrencias" data-id="' +
+        x.id + '" data-k="descricao">' + esc(x.descricao) + '</textarea>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><span style="flex:1;font-size:14px">Dias de atraso que isso causa</span>' +
+        passo('impacto', x.id, x.impacto) + '</div></div>').join('');
+    h += '<button class="mais" data-a="addOcorrencia">' + ic('mais') + 'Registrar ocorrência</button>';
+    if (!r.ocorrencias.length) h += botaoNada('ocorrencias', r, 'Sem ocorrências hoje');
+    return h;
+  }
+  case 'seguranca': {
+    const s = r.seguranca;
+    const sn = (k, rot) => '<label class="rot">' + rot + '</label><div class="seg"><button class="' + (s[k] === true ? 'on sim' : '') +
+      '" data-a="seg" data-k="' + k + '" data-v="1">Sim</button><button class="' + (s[k] === false ? 'on nao' : '') +
+      '" data-a="seg" data-k="' + k + '" data-v="0">Não</button></div>';
+    let h = sn('dds', 'Teve DDS (diálogo de segurança)?');
+    if (s.dds) h += '<div class="chips" style="margin-top:9px">' + TEMAS_DDS.map(t => '<button class="chip ' + (s.tema === t ? 'on' : '') +
+      '" data-a="temaDds" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>';
+    h += sn('acidente', 'Houve acidente ou incidente?');
+    if (s.acidente) h += '<textarea class="campo" style="margin-top:9px" placeholder="Quem, o que houve, providência, CAT emitida?" data-c="segTxt">' +
+      esc(s.descAcidente) + '</textarea>';
+    return h;
+  }
+  case 'materiais': {
+    let h = r.materiais.map(m => '<div class="item"><div class="item-topo"><b>' + esc(m.material || 'Material') + '</b>' +
+      '<button class="x" data-a="rmLista" data-lista="materiais" data-id="' + m.id + '">' + ic('x') + '</button></div>' +
+      ['material:Material', 'qtd:Quantidade', 'fornecedor:Fornecedor', 'nf:Nota fiscal'].map(c => { const [k, p] = c.split(':');
+        return '<input class="campo" style="margin-bottom:6px" placeholder="' + p + '" value="' + esc(m[k]) + '" data-c="campoLista" data-lista="materiais" data-id="' + m.id + '" data-k="' + k + '">'; }).join('') + '</div>').join('');
+    h += '<button class="mais" data-a="addMaterial">' + ic('mais') + 'Registrar recebimento</button>';
+    if (!r.materiais.length) h += botaoNada('materiais', r, 'Nenhum recebimento hoje');
+    return h;
+  }
+  case 'visitas': {
+    let h = r.visitas.map(v => '<div class="item"><div class="item-topo"><b>' + esc(v.nome || 'Visitante') + '</b>' +
+      '<button class="x" data-a="rmLista" data-lista="visitas" data-id="' + v.id + '">' + ic('x') + '</button></div>' +
+      '<input class="campo" style="margin-bottom:6px" placeholder="Nome" value="' + esc(v.nome) + '" data-c="campoLista" data-lista="visitas" data-id="' + v.id + '" data-k="nome">' +
+      '<input class="campo" style="margin-bottom:8px" placeholder="Empresa / órgão" value="' + esc(v.empresa) + '" data-c="campoLista" data-lista="visitas" data-id="' + v.id + '" data-k="empresa">' +
+      seletor('motivoVisita', v.id, v.motivo, 'Motivo da visita') + '</div>').join('');
+    h += '<button class="mais" data-a="addVisita">' + ic('mais') + 'Registrar visita</button>';
+    if (!r.visitas.length) h += botaoNada('visitas', r, 'Sem visitas hoje');
+    return h;
+  }
+  case 'observacoes': {
+    let h = '<textarea class="campo" placeholder="Comunicações à fiscalização, determinações recebidas, pendências…" data-c="obs">' + esc(r.observacoes) + '</textarea>' +
+      '<p class="dica">' + ic('mic') + 'Dá para ditar pelo microfone do teclado.</p>';
+    if (!(r.observacoes || '').trim()) h += botaoNada('observacoes', r, 'Nada a observar');
+    return h;
+  }
+  case 'assinaturas': {
+    return ['responsavel', 'fiscal'].map(q => {
+      const a = r.assinaturas[q];
+      return '<label class="rot">' + (q === 'responsavel' ? 'Responsável técnico' : 'Fiscalização (opcional)') + '</label>' +
+        '<input class="campo" style="margin-bottom:8px" placeholder="Nome" value="' + esc(a.nome) + '" data-c="assNome" data-q="' + q + '">' +
+        (a.img ? '<img class="assin-img" src="' + a.img + '" alt="assinatura"><button class="btn fant" data-a="refazerAss" data-q="' + q + '">Assinar de novo</button>'
+               : '<canvas class="assin" data-ass="' + q + '"></canvas><div style="display:flex;gap:8px;margin-top:6px">' +
+                 '<button class="btn fant" data-a="limparAss" data-q="' + q + '">Limpar</button><span style="flex:1"></span>' +
+                 '<button class="btn sec" data-a="salvarAss" data-q="' + q + '">' + ic('ok') + 'Confirmar assinatura</button></div>');
+    }).join('<div style="height:8px"></div>');
+  }
+  }
+  return '';
+}
+
+/* ---------------- gravação automática ---------------- */
+/* A memória é atualizada na hora; só a escrita em disco espera um instante
+ * (um cronômetro por dia, para trocar de dia rápido não descartar nada). */
+const _tGrava = {};
+function alterado(secRedesenhar) {
+  const r = App.rdoAtual;
+  r.atualizadoEm = new Date().toISOString();
+  const k = chaveRdo(r.obraId, r.data);
+  App.rdos[k] = JSON.parse(JSON.stringify(r));
+  if (secRedesenhar) redesenhar(secRedesenhar);
+  atualizarBarra();
+  const s = $('#salvo'); if (s) s.textContent = 'Salvando…';
+  clearTimeout(_tGrava[k]);
+  _tGrava[k] = setTimeout(() => {
+    delete _tGrava[k];
+    Banco.gravar('rdos', k, App.rdos[k]).then(() => { const s2 = $('#salvo'); if (s2) s2.textContent = 'Salvo ✓'; })
+      .catch(e => { toast('ERRO AO SALVAR: ' + e.message, 5000); });
+  }, 400);
+}
+/* Se a pessoa fechar a aba no meio, grava o que estiver pendente. */
+window.addEventListener('pagehide', () => Object.keys(_tGrava).forEach(k => { clearTimeout(_tGrava[k]); Banco.gravar('rdos', k, App.rdos[k]); }));
+document.addEventListener('visibilitychange', () => { if (document.hidden) Object.keys(_tGrava).forEach(k => { clearTimeout(_tGrava[k]); delete _tGrava[k]; Banco.gravar('rdos', k, App.rdos[k]); }); });
+function redesenhar(sec) {
+  const r = App.rdoAtual, o = App.obraAtual;
+  if (sec === '*') {
+    $('#cartoes').innerHTML = secoesVisiveis(o, r).map(s => cartao(s, r, o)).join('');
+    carregarMiniaturas(); montarAssinaturas(); return;
+  }
+  const el = $('#c-' + sec); if (!el) return;
+  const novo = document.createElement('div'); novo.innerHTML = cartao(sec, r, o);
+  el.replaceWith(novo.firstChild);
+  if (sec === 'fotos') carregarMiniaturas();
+  if (sec === 'assinaturas') montarAssinaturas();
+}
+function atualizarBarra() {
+  const r = App.rdoAtual, o = App.obraAtual;
+  const vis = secoesVisiveis(o, r), ok = vis.filter(s => preenchida(s, r)).length;
+  const p = $('#prog'); if (p) p.innerHTML = '<b class="num">' + ok + '/' + vis.length + '</b>blocos';
+  const b = $('#btConcluir'); if (b) b.className = 'btn ' + (ok === vis.length ? 'verde' : 'pri');
+  vis.forEach(s => {
+    const c = $('#c-' + s); if (!c) return;
+    const m = c.querySelector('.marca-ok,.marca-vazia');
+    if (m) m.outerHTML = preenchida(s, r) ? '<span class="marca-ok">' + ic('ok') + '</span>' : '<span class="marca-vazia"></span>';
+    const rs = c.querySelector('.resumo'); if (rs) rs.textContent = resumoSecao(s, r);
+  });
+}
+
+/* ---------------- concluir ---------------- */
+function concluirDia() {
+  const r = App.rdoAtual, o = App.obraAtual;
+  const faltam = secoesVisiveis(o, r).filter(s => !preenchida(s, r));
+  const fechar = () => {
+    r.status = 'concluido'; r.concluidoEm = r.concluidoEm || new Date().toISOString();
+    alterado();
+    setTimeout(() => { toast('Diário de ' + br(r.data) + ' fechado'); ir('#/obra/' + o.id + '/diario'); }, 500);
+  };
+  if (!faltam.length) return fechar();
+  abrirFolha('<h3>Ficaram ' + faltam.length + ' bloco(s) sem preencher</h3>' +
+    '<p style="color:var(--tinta2);margin:0 0 10px;font-size:14.5px">Nada é obrigatório. Você pode completar agora ou fechar assim mesmo.</p>' +
+    faltam.map(s => { const d = SECOES.find(x => x[0] === s);
+      return '<button class="item" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left" data-a="irSecao" data-s="' + s + '">' +
+        '<span class="ico" style="width:32px;height:32px;display:grid;place-items:center;color:var(--aco)">' + ic(d[2]) + '</span>' +
+        '<b style="flex:1">' + d[1] + '</b><span style="color:var(--acao);font-weight:600;font-size:14px">Preencher</span></button>'; }).join('') +
+    '<div style="display:flex;gap:9px;margin-top:12px"><button class="btn sec" style="flex:1" data-a="fecharFolha">Voltar</button>' +
+    '<button class="btn verde" style="flex:1" data-a="fecharMesmoAssim">Fechar assim mesmo</button></div>',
+    f => { App._fechar = fechar; });
+}
+
+/* =====================================================================
+ * AÇÕES — todo clique e toda digitação passam por aqui
+ * ===================================================================== */
+const R = () => App.rdoAtual;
+const achar = (lista, id) => R()[lista].find(x => x.id === id);
+const lim = (n, a, b) => Math.max(a, Math.min(b, n));
+
+const A = {
+  ir: el => ir(el.dataset.h),
+  voltar: el => { if (history.length > 1 && document.referrer !== '') history.back(); else ir(el.dataset.h); },
+  fecharFolha: () => fecharFolha(),
+  mes: el => { const d = +el.dataset.d; let [a, m] = App.mes; m += d; if (m < 0) { m = 11; a--; } if (m > 11) { m = 0; a++; } App.mes = [a, m]; render(); },
+  exemplo: () => criarExemplo().then(() => { toast('Obra de exemplo criada'); render(); }),
+
+  /* ---- obra ---- */
+  tipoObra: el => { document.querySelectorAll('#tipoObra .chip').forEach(c => c.classList.toggle('on', c === el));
+    $('#formObra [name=tipo]').value = el.dataset.v; },
+  salvarObra: el => {
+    const f = $('#formObra'), d = {};
+    new FormData(f).forEach((v, k) => d[k] = String(v).trim());
+    if (!d.nome) return toast('Informe o nome da obra');
+    if (!d.inicio) return toast('Informe a data de início');
+    const id = el.dataset.id;
+    const o = id ? obraPor(id) : { id: uid(), criadaEm: new Date().toISOString(), docs: [],
+      equipePadrao: EQUIPE_PADRAO.slice(), equipPadrao: EQUIP_PADRAO.slice(), secoes: Object.assign({}, SECOES_PADRAO) };
+    if (o.cidade !== d.cidade) { delete o.lat; delete o.lon; }
+    Object.assign(o, d);
+    if (!id) App.obras.push(o);
+    salvarObra(o).then(() => { toast(id ? 'Obra atualizada' : 'Obra cadastrada'); ir('#/obra/' + o.id + (id ? '/cadastro' : '/cadastro')); });
+  },
+  toggleLista: el => {
+    const o = obraPor(App.rota.id), c = el.dataset.campo, v = el.dataset.v;
+    o[c] = o[c] || [];
+    o[c] = o[c].includes(v) ? o[c].filter(x => x !== v) : o[c].concat(v);
+    el.classList.toggle('on'); salvarObra(o);
+  },
+  toggleSecao: el => {
+    const o = obraPor(App.rota.id);
+    o.secoes = Object.assign({}, SECOES_PADRAO, o.secoes || {});
+    o.secoes[el.dataset.s] = !o.secoes[el.dataset.s];
+    el.classList.toggle('on'); salvarObra(o);
+  },
+  arquivarObra: () => { const o = obraPor(App.rota.id); o.arquivada = !o.arquivada; salvarObra(o).then(() => { toast(o.arquivada ? 'Obra arquivada' : 'Obra reativada'); ir('#/'); }); },
+  excluirObra: () => {
+    const o = obraPor(App.rota.id);
+    confirmar('Excluir "' + o.nome + '"?', 'Apaga a obra e TODOS os diários, fotos e documentos dela neste aparelho. Não dá para desfazer. Se tiver dúvida, faça uma cópia de segurança antes.', 'Excluir tudo', true)
+      .then(ok => { if (!ok) return;
+        const rs = rdosDa(o.id), ps = [];
+        rs.forEach(r => { (r.fotos || []).forEach(f => ps.push(Banco.apagar('fotos', f.id))); const k = chaveRdo(r.obraId, r.data); delete App.rdos[k]; ps.push(Banco.apagar('rdos', k)); });
+        (o.docs || []).forEach(d => ps.push(Banco.apagar('docs', d.id)));
+        ps.push(Banco.apagar('obras', o.id));
+        App.obras = App.obras.filter(x => x.id !== o.id);
+        Promise.all(ps).then(() => { toast('Obra excluída'); ir('#/'); });
+      });
+  },
+  abrirDoc: el => Banco.ler('docs', el.dataset.id).then(d => { if (!d) return toast('Arquivo não encontrado');
+    const u = URL.createObjectURL(d.blob); const w = window.open(u, '_blank'); if (!w) baixarArquivo(d.nome, d.blob); }),
+  apagarDoc: el => confirmar('Remover documento?', 'O arquivo sai deste aparelho.', 'Remover', true).then(ok => { if (!ok) return;
+    const o = obraPor(App.rota.id); o.docs = o.docs.filter(d => d.id !== el.dataset.id);
+    Promise.all([Banco.apagar('docs', el.dataset.id), salvarObra(o)]).then(render); }),
+
+  /* ---- diário: clima ---- */
+  houve: el => { R().clima.houve = el.dataset.v === '1'; if (R().clima.houve) R().clima.motivo = ''; alterado('*'); },
+  motivo: el => { R().clima.motivo = el.dataset.v; alterado('clima'); },
+  clima: el => { R().clima[el.dataset.t] = el.dataset.v; alterado('clima'); },
+  horas: el => { R().clima.horasParadas = lim((+R().clima.horasParadas || 0) + (+el.dataset.d), 0, 12); alterado('clima'); },
+  climaAuto: () => preencherClima(),
+
+  /* ---- mão de obra / equipamentos ---- */
+  mao: el => { const m = R().maoDeObra; m[el.dataset.k] = lim((+m[el.dataset.k] || 0) + (+el.dataset.d), 0, 500); alterado('maoDeObra'); },
+  equip: el => { const m = R().equipamentos; m[el.dataset.k] = lim((+m[el.dataset.k] || 0) + (+el.dataset.d), 0, 99);
+    if (m[el.dataset.k] > 0) delete R().nada.equipamentos; alterado('equipamentos'); },
+  terc: el => { const t = achar('terceiros', el.dataset.k); t.qtd = lim((+t.qtd || 0) + (+el.dataset.d), 0, 500); alterado('maoDeObra'); },
+  addFuncao: () => escolherDaLista('Qual função?', FUNCOES.filter(f => !(f in R().maoDeObra)), f => { R().maoDeObra[f] = 1; alterado('maoDeObra'); }),
+  addEquip: () => escolherDaLista('Qual equipamento?', EQUIPAMENTOS.filter(f => !(f in R().equipamentos)), f => { R().equipamentos[f] = 1; delete R().nada.equipamentos; alterado('equipamentos'); }, true),
+  addTerceiro: () => { R().terceiros.push({ id: uid(), empresa: '', servico: '', qtd: 1 }); alterado('maoDeObra'); },
+
+  /* ---- listas ---- */
+  addAtividade: () => {
+    const nova = { id: uid(), frente: '', descricao: '', status: 'andamento' };
+    escolherDaLista('Frente de serviço', FRENTES, v => {
+      nova.frente = v; R().atividades.push(nova); alterado('atividades');
+      setTimeout(() => { const t = document.querySelectorAll('#c-atividades textarea'); if (t.length) t[t.length - 1].focus(); }, 60);
+    }, true);
+  },
+  frente: el => escolherDaLista('Frente de serviço', FRENTES, v => { achar('atividades', el.dataset.id).frente = v; alterado('atividades'); }, true),
+  statusAtiv: el => { achar('atividades', el.dataset.id).status = el.dataset.v; alterado('atividades'); },
+  addOcorrencia: () => { R().ocorrencias.push({ id: uid(), tipo: '', descricao: '', impacto: 0 }); delete R().nada.ocorrencias; alterado('ocorrencias'); },
+  tipoOcor: el => escolherDaLista('Tipo de ocorrência', OCORRENCIAS, v => { achar('ocorrencias', el.dataset.id).tipo = v; alterado('ocorrencias'); }, true),
+  impacto: el => { const x = achar('ocorrencias', el.dataset.k); x.impacto = lim((+x.impacto || 0) + (+el.dataset.d), 0, 60); alterado('ocorrencias'); },
+  addMaterial: () => { R().materiais.push({ id: uid(), material: '', qtd: '', fornecedor: '', nf: '' }); delete R().nada.materiais; alterado('materiais'); },
+  addVisita: () => { R().visitas.push({ id: uid(), nome: '', empresa: '', motivo: '' }); delete R().nada.visitas; alterado('visitas'); },
+  motivoVisita: el => escolherDaLista('Motivo da visita', MOTIVOS_VISITA, v => { achar('visitas', el.dataset.id).motivo = v; alterado('visitas'); }, true),
+  rmLista: el => { const l = el.dataset.lista; R()[l] = R()[l].filter(x => x.id !== el.dataset.id);
+    alterado(l === 'terceiros' ? 'maoDeObra' : l); },
+  nada: el => { const s = el.dataset.sec; R().nada[s] = !R().nada[s]; alterado(s); },
+
+  /* ---- segurança ---- */
+  seg: el => { R().seguranca[el.dataset.k] = el.dataset.v === '1'; alterado('seguranca'); },
+  temaDds: el => { R().seguranca.tema = el.dataset.v; alterado('seguranca'); },
+
+  /* ---- fotos ---- */
+  editarFoto: el => {
+    const f = R().fotos.find(x => x.id === el.dataset.id);
+    urlFoto(f.id).then(u => abrirFolha('<img src="' + u + '" alt="" style="width:100%;border-radius:12px;max-height:55vh;object-fit:contain;background:#000">' +
+      '<label class="rot">Legenda</label><input class="campo" id="legFoto" value="' + esc(f.legenda || '') + '" placeholder="Ex.: concretagem da laje do 2º pavimento">' +
+      '<div class="chips" style="margin-top:8px">' + FRENTES.slice(0, 12).map(x => '<button class="chip" data-a="legRapida" data-v="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>' +
+      '<div style="display:flex;gap:9px;margin-top:14px"><button class="btn sec" style="color:var(--erro)" data-a="apagarFoto" data-id="' + f.id + '">' + ic('lixo') + '</button>' +
+      '<button class="btn pri" style="flex:1" data-a="salvarLegenda" data-id="' + f.id + '">' + ic('ok') + 'Salvar legenda</button></div>'));
+  },
+  legRapida: el => { const i = $('#legFoto'); i.value = i.value ? i.value + ' — ' + el.dataset.v : el.dataset.v; i.focus(); },
+  salvarLegenda: el => { R().fotos.find(x => x.id === el.dataset.id).legenda = $('#legFoto').value.trim(); fecharFolha(); alterado('fotos'); },
+  apagarFoto: el => { R().fotos = R().fotos.filter(x => x.id !== el.dataset.id); Banco.apagar('fotos', el.dataset.id); fecharFolha(); alterado('fotos'); },
+  verFoto: el => urlFoto(el.dataset.id).then(u => abrirFolha('<img src="' + u + '" alt="" style="width:100%;border-radius:12px;max-height:70vh;object-fit:contain;background:#000">' +
+    (el.dataset.leg ? '<p style="margin:10px 0 0">' + esc(el.dataset.leg) + '</p>' : ''))),
+
+  /* ---- assinaturas ---- */
+  limparAss: el => { const c = document.querySelector('canvas[data-ass="' + el.dataset.q + '"]'); if (c && c._limpar) c._limpar(); },
+  salvarAss: el => { const c = document.querySelector('canvas[data-ass="' + el.dataset.q + '"]');
+    if (!c || !c._temTraco) return toast('Assine no quadro antes de confirmar');
+    R().assinaturas[el.dataset.q].img = c._imagem(); alterado('assinaturas'); },
+  refazerAss: el => { R().assinaturas[el.dataset.q].img = ''; alterado('assinaturas'); },
+
+  /* ---- concluir ---- */
+  copiarAnterior: () => copiarAnterior(),
+  concluir: () => concluirDia(),
+  irSecao: el => { fecharFolha(); const c = $('#c-' + el.dataset.s); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.style.boxShadow = '0 0 0 3px var(--acao)'; setTimeout(() => c.style.boxShadow = '', 1800); } },
+  fecharMesmoAssim: () => { fecharFolha(); if (App._fechar) App._fechar(); },
+
+  /* ---- relatórios / config ---- */
+  pdf: el => gerarPdf(el.dataset),
+  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: $('#pFotos').checked ? '1' : '0' }),
+  excel: () => gerarExcel(obraPor(App.rota.id)),
+  backup: () => salvarBackup(),
+  testar: () => testarAparelho()
+};
+
+function escolherDaLista(titulo, itens, aoEscolher, livre) {
+  abrirFolha('<h3>' + esc(titulo) + '</h3>' +
+    '<input class="campo" id="filtroLista" placeholder="Procurar ou digitar um novo…" style="margin-bottom:10px">' +
+    '<div class="chips" id="listaEsc">' + itens.map(f => '<button class="chip" data-v="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' +
+    '<button class="btn sec cheio" id="usarDigitado" style="margin-top:12px;display:none"></button>',
+    f => {
+      const filtro = $('#filtroLista', f), usar = $('#usarDigitado', f);
+      f.querySelectorAll('#listaEsc .chip').forEach(c => c.onclick = () => { fecharFolha(); aoEscolher(c.dataset.v); });
+      filtro.oninput = () => {
+        const t = filtro.value.trim().toLowerCase();
+        f.querySelectorAll('#listaEsc .chip').forEach(c => c.style.display = c.dataset.v.toLowerCase().includes(t) ? '' : 'none');
+        usar.style.display = t ? '' : 'none'; usar.textContent = 'Usar "' + filtro.value.trim() + '"';
+      };
+      usar.onclick = () => { const v = filtro.value.trim(); if (v) { fecharFolha(); aoEscolher(v); } };
+    });
+}
+
+function copiarAnterior() {
+  const o = App.obraAtual, r = R();
+  const ant = rdosDa(o.id).filter(x => x.data < r.data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
+  if (!ant) return;
+  const c = JSON.parse(JSON.stringify(ant));
+  r.maoDeObra = c.maoDeObra; r.terceiros = c.terceiros.map(t => Object.assign(t, { id: uid() }));
+  r.equipamentos = c.equipamentos;
+  r.atividades = c.atividades.filter(a => a.status !== 'concluida').map(a => Object.assign(a, { id: uid(), status: 'andamento' }));
+  r.assinaturas.responsavel.nome = c.assinaturas.responsavel.nome || r.assinaturas.responsavel.nome;
+  r.clima.houve = true;
+  alterado();
+  toast('Copiado de ' + br(ant.data) + ' — revise o que mudou');
+  render();
+}
+
+/* ---- cliques ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el || el.disabled) return;
+  const fn = A[el.dataset.a];
+  if (fn) { e.preventDefault(); fn(el); }
+});
+
+/* ---- digitação e arquivos ---- */
+document.addEventListener('input', e => {
+  const el = e.target, c = el.dataset && el.dataset.c;
+  if (!c) return;
+  if (c === 'campoLista') { const x = achar(el.dataset.lista, el.dataset.id); x[el.dataset.k] = el.value; alterado(); }
+  else if (c === 'obs') { R().observacoes = el.value; if (el.value.trim()) delete R().nada.observacoes; alterado(); }
+  else if (c === 'segTxt') { R().seguranca.descAcidente = el.value; alterado(); }
+  else if (c === 'assNome') { R().assinaturas[el.dataset.q].nome = el.value; alterado(); }
+  else if (c === 'cfg') { App.config[el.dataset.k] = el.value; clearTimeout(A._tc); A._tc = setTimeout(salvarConfig, 400); }
+});
+
+document.addEventListener('change', e => {
+  const el = e.target, c = el.dataset && el.dataset.c;
+  if (!c || !el.files) return;
+  const arqs = Array.from(el.files); el.value = '';
+  if (!arqs.length) return;
+
+  if (c === 'foto') {
+    const r = R(), st = $('#fotoStatus');
+    let i = 0;
+    const prox = () => {
+      if (i >= arqs.length) { if (st) st.innerHTML = ''; delete r.nada.fotos; alterado('fotos'); return; }
+      if (st) st.innerHTML = '<p class="dica">Guardando foto ' + (i + 1) + ' de ' + arqs.length + '…</p>';
+      comprimirFoto(arqs[i]).then(blob => {
+        const id = uid();
+        return Banco.gravar('fotos', id, { id, obraId: r.obraId, data: r.data, blob }).then(() => r.fotos.push({ id, legenda: '' }));
+      }).then(() => { i++; prox(); }).catch(err => { toast('Foto não salva: ' + err.message, 4000); i++; prox(); });
+    };
+    prox();
+  }
+  else if (c === 'anexarDoc') {
+    const o = obraPor(App.rota.id), tipo = $('#docTipo').value, a = arqs[0];
+    if (a.size > 50 * 1048576) return toast('Arquivo acima de 50 MB');
+    const id = uid();
+    Banco.gravar('docs', id, { id, nome: a.name, tipo: a.type, blob: a }).then(() => {
+      o.docs = (o.docs || []).concat({ id, tipo, nome: a.name, tamanho: a.size, em: hojeIso() });
+      return salvarObra(o);
+    }).then(() => { toast(tipo + ' anexado'); render(); }).catch(err => toast('Não foi possível anexar: ' + err.message, 4000));
+  }
+  else if (c === 'logo') {
+    comprimirFoto(arqs[0], 500).then(blobParaUrl).then(u => { App.config.logo = u; return salvarConfig(); }).then(() => { toast('Logo salvo'); render(); });
+  }
+  else if (c === 'restaurar') restaurarBackup(arqs[0]);
+});
+
+/* =====================================================================
+ * EXTRAS — clima automático, assinatura, cópia de segurança, exemplo
+ * ===================================================================== */
+
+/* ---------- clima automático (Open-Meteo, grátis, sem cadastro) ----------
+ * Só usa a internet quando o engenheiro toca no botão. Nada do diário sai do aparelho:
+ * vai apenas o nome da cidade e a data. */
+function preencherClima() {
+  const o = App.obraAtual, r = R();
+  if (!o.cidade) { toast('Cadastre a cidade na aba Obra → Editar'); return; }
+  if (!navigator.onLine) { toast('Sem internet agora. Marque o clima à mão.'); return; }
+  toast('Buscando o clima…', 1500);
+  const geo = o.lat ? Promise.resolve() : fetch('https://geocoding-api.open-meteo.com/v1/search?count=5&language=pt&countryCode=BR&name=' +
+      encodeURIComponent(o.cidade.split(/[,\-–]/)[0].trim()))
+    .then(x => x.json()).then(j => {
+      if (!j.results || !j.results.length) throw new Error('Cidade não encontrada: ' + o.cidade);
+      const uf = (o.cidade.match(/\b([A-Z]{2})\b/) || [])[1];
+      const UFS = { PR:'Paraná', SP:'São Paulo', SC:'Santa Catarina', RS:'Rio Grande do Sul', MS:'Mato Grosso do Sul', MG:'Minas Gerais', RJ:'Rio de Janeiro', GO:'Goiás', MT:'Mato Grosso', BA:'Bahia', DF:'Distrito Federal' };
+      const c = (uf && j.results.find(x => x.admin1 === UFS[uf])) || j.results[0];
+      o.lat = c.latitude; o.lon = c.longitude; return salvarObra(o);
+    });
+  geo.then(() => {
+    const dias = difDias(r.data, hojeIso());
+    const base = dias > 80 ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
+    return fetch(base + '?latitude=' + o.lat + '&longitude=' + o.lon + '&hourly=weather_code,precipitation&timezone=America%2FSao_Paulo' +
+      '&start_date=' + r.data + '&end_date=' + r.data).then(x => x.json());
+  }).then(j => {
+    if (!j.hourly) throw new Error('Clima indisponível para esta data');
+    const per = (h0, h1) => {
+      let cod = 0, mm = 0;
+      j.hourly.time.forEach((t, i) => { const h = +t.slice(11, 13);
+        if (h >= h0 && h <= h1) { cod = Math.max(cod, j.hourly.weather_code[i] || 0); mm += j.hourly.precipitation[i] || 0; } });
+      if (cod >= 95 || mm >= 8) return 'impraticavel';
+      if (cod >= 51 || mm >= 0.5) return 'chuva';
+      if (cod >= 2) return 'nublado';
+      return 'bom';
+    };
+    r.clima.manha = per(7, 11); r.clima.tarde = per(13, 17);
+    r.clima.chuvaMm = Math.round(j.hourly.precipitation.reduce((a, b) => a + (b || 0), 0) * 10) / 10;
+    alterado('clima'); toast('Clima preenchido — confira se bate com o que você viu');
+  }).catch(e => toast(e.message || 'Não foi possível buscar o clima', 3500));
+}
+
+/* ---------- assinatura no dedo ---------- */
+function montarAssinaturas() {
+  document.querySelectorAll('canvas[data-ass]').forEach(cv => {
+    if (cv._pronto) return; cv._pronto = true;
+    const dpr = window.devicePixelRatio || 1, ret = cv.getBoundingClientRect();
+    cv.width = ret.width * dpr; cv.height = ret.height * dpr;
+    const c = cv.getContext('2d'); c.scale(dpr, dpr);
+    c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#0b1f3a';
+    let ativo = false, ult = null;
+    const pos = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    cv.addEventListener('pointerdown', e => { ativo = true; ult = pos(e); cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', e => { if (!ativo) return; const p = pos(e);
+      c.beginPath(); c.moveTo(ult[0], ult[1]); c.lineTo(p[0], p[1]); c.stroke(); ult = p; cv._temTraco = true; });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => cv.addEventListener(t, () => ativo = false));
+    cv._limpar = () => { c.clearRect(0, 0, cv.width, cv.height); cv._temTraco = false; };
+    cv._imagem = () => {
+      // recorta e reduz para não pesar no PDF
+      const out = document.createElement('canvas'); out.width = 600; out.height = 220;
+      const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, 600, 220);
+      o.drawImage(cv, 0, 0, 600, 220); return out.toDataURL('image/png');
+    };
+  });
+}
+
+/* ---------- cópia de segurança ---------- */
+function salvarBackup() {
+  toast('Montando a cópia…', 1500);
+  Promise.all([Banco.todos('fotos'), Banco.todos('docs')]).then(([fotos, docs]) =>
+    Promise.all([
+      Promise.all(fotos.map(f => blobParaUrl(f.blob).then(u => ({ id: f.id, obraId: f.obraId, data: f.data, url: u })))),
+      Promise.all(docs.map(d => blobParaUrl(d.blob).then(u => ({ id: d.id, nome: d.nome, tipo: d.tipo, url: u }))))
+    ])
+  ).then(([fotos, docs]) => {
+    App.config.ultimoBackup = hojeIso();
+    const pacote = { app: 'diario-de-obras', versao: 2, geradoEm: new Date().toISOString(), config: App.config,
+      obras: App.obras, rdos: Object.values(App.rdos), fotos, docs };
+    const blob = new Blob([JSON.stringify(pacote)], { type: 'application/json' });
+    baixarArquivo('diario-de-obras-copia-' + hojeIso() + '.json', blob);
+    return salvarConfig().then(() => { toast('Cópia salva (' + mb(blob.size) + '). Guarde fora deste aparelho.', 4500); render(); });
+  }).catch(e => toast('Falha ao montar a cópia: ' + e.message, 5000));
+}
+
+function restaurarBackup(arq) {
+  lerComo(arq, 'url').then(u => fetch(u)).then(r => r.json()).then(p => {
+    if (!p || p.app !== 'diario-de-obras') throw new Error('Este arquivo não é uma cópia do Diário de Obras.');
+    return confirmar('Restaurar a cópia de ' + br((p.geradoEm || '').slice(0, 10)) + '?',
+      'Substitui tudo que está neste aparelho por: ' + p.obras.length + ' obra(s), ' + p.rdos.length + ' diário(s) e ' + p.fotos.length + ' foto(s).',
+      'Restaurar', true).then(ok => {
+      if (!ok) return;
+      toast('Restaurando…', 3000);
+      return Promise.all(['config', 'obras', 'rdos', 'fotos', 'docs'].map(l => Banco.limpar(l))).then(() => {
+        const t = [Banco.gravar('config', 'geral', p.config || {})];
+        p.obras.forEach(o => t.push(Banco.gravar('obras', o.id, o)));
+        p.rdos.forEach(r => t.push(Banco.gravar('rdos', chaveRdo(r.obraId, r.data), r)));
+        return Promise.all(t)
+          .then(() => p.fotos.reduce((pr, f) => pr.then(() => urlParaBlob(f.url).then(b => Banco.gravar('fotos', f.id, { id: f.id, obraId: f.obraId, data: f.data, blob: b }))), Promise.resolve()))
+          .then(() => p.docs.reduce((pr, d) => pr.then(() => urlParaBlob(d.url).then(b => Banco.gravar('docs', d.id, { id: d.id, nome: d.nome, tipo: d.tipo, blob: b }))), Promise.resolve()));
+      }).then(() => carregarTudo()).then(() => { toast('Cópia restaurada'); ir('#/'); });
+    });
+  }).catch(e => toast(e.message || 'Arquivo inválido', 5000));
+}
+
+function testarAparelho() {
+  const linhas = [], tam = 3 * 1048576;
+  const blob = new Blob([new Uint8Array(tam)]);
+  const t0 = performance.now();
+  Banco.gravar('fotos', '__teste__', { id: '__teste__', blob }).then(() => Banco.ler('fotos', '__teste__'))
+    .then(v => { const ok = v && v.blob && v.blob.size === tam;
+      linhas.push(ok ? '✔ Gravou e leu 3 MB de volta (' + Math.round(performance.now() - t0) + ' ms)' : '✘ Falhou ao ler de volta');
+      return Banco.apagar('fotos', '__teste__').then(() => ok); })
+    .then(ok => Banco.espaco().then(e => {
+      linhas.push('✔ Guardando em: ' + (Banco.motor === 'indexeddb' ? 'banco do navegador' : 'memória (NÃO salva)'));
+      if (e) { const livre = e.total - e.usado; linhas.push('✔ Espaço livre: ' + mb(livre) + ' — dá para ~' +
+        Math.max(0, Math.floor(livre / (4 * 250 * 1024 * 300))) + ' anos de obra com 4 fotos por dia'); }
+      const bom = ok && Banco.motor === 'indexeddb';
+      abrirFolha('<h3>' + (bom ? 'Tudo certo neste aparelho' : 'Este aparelho NÃO está salvando') + '</h3>' +
+        '<div class="aviso ' + (bom ? 'o' : 'e') + '">' + ic(bom ? 'ok' : 'alerta') + '<div>' + linhas.map(esc).join('<br>') + '</div></div>' +
+        (bom ? '<p style="font-size:14px;color:var(--tinta2)">Mesmo assim, salve a cópia de segurança toda semana.</p>'
+             : '<p style="font-size:14px">Abra no Google Chrome ou Microsoft Edge. Se abriu o arquivo de dentro do ZIP, extraia antes.</p>') +
+        '<button class="btn sec cheio" data-a="fecharFolha">Fechar</button>');
+    }))
+    .catch(e => toast('Erro no teste: ' + e.message, 5000));
+}
+
+/* ---------- obra de exemplo ---------- */
+function fotoExemplo(txt, cor) {
+  const cv = document.createElement('canvas'); cv.width = 1200; cv.height = 900;
+  const c = cv.getContext('2d');
+  const g = c.createLinearGradient(0, 0, 0, 900); g.addColorStop(0, cor); g.addColorStop(1, '#0d1620');
+  c.fillStyle = g; c.fillRect(0, 0, 1200, 900);
+  c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 2;
+  for (let x = 0; x < 1200; x += 60) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 900); c.stroke(); }
+  for (let y = 0; y < 900; y += 60) { c.beginPath(); c.moveTo(0, y); c.lineTo(1200, y); c.stroke(); }
+  c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = 'bold 54px Arial'; c.fillText('FOTO DE EXEMPLO', 600, 430);
+  c.font = '34px Arial'; c.fillStyle = 'rgba(255,255,255,.8)'; c.fillText(txt, 600, 490);
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', 0.7));
+}
+
+function criarExemplo() {
+  const hoje = hojeIso(), ini = somaDias(hoje, -12);
+  const o = { id: uid(), nome: 'Fórum Municipal — Exemplo', tipo: 'Edificação nova', cliente: 'Prefeitura (exemplo)',
+    endereco: 'Rua Central, 1000', cidade: 'Iporã, PR', contrato: '012/2026', art: 'PR-0000000', inicio: ini, prazoDias: '365',
+    fiscalNome: 'Eng. Fiscal do Contrato', fiscalCargo: 'Fiscalização', turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30',
+    equipePadrao: EQUIPE_PADRAO.slice(), equipPadrao: EQUIP_PADRAO.slice(), secoes: Object.assign({}, SECOES_PADRAO), docs: [],
+    criadaEm: new Date().toISOString() };
+  const docs = DOCS_EXIGIDOS.map(t => ({ id: uid(), tipo: t, nome: t.replace('/', '-') + ' (exemplo).txt', tamanho: 40, em: hoje }));
+  o.docs = docs;
+  if (!App.config.empresa) App.config.empresa = 'Sua Construtora';
+  const tarefas = [salvarObra(o), salvarConfig()];
+  docs.forEach(d => tarefas.push(Banco.gravar('docs', d.id, { id: d.id, nome: d.nome, tipo: 'text/plain', blob: new Blob(['Documento de exemplo: ' + d.tipo], { type: 'text/plain' }) })));
+  App.obras.push(o);
+
+  const servicos = [['Fundação', 'Escavação e armação dos blocos B1 a B6'], ['Estrutura', 'Forma e armação dos pilares do térreo'],
+    ['Estrutura', 'Concretagem da laje do térreo — 42 m³ fck 30'], ['Alvenaria', 'Elevação de alvenaria do bloco A, eixo 1 a 4'],
+    ['Instalações elétricas', 'Passagem de eletrodutos na laje'], ['Instalações hidrossanitárias', 'Tubulação de esgoto sob o piso']];
+  const fotosPend = [];
+  for (let i = 12; i >= 1; i--) {
+    const d = somaDias(hoje, -i), dow = dataDe(d).getDay();
+    if (i === 4 || i === 2) continue;                          // dois dias sem lançamento, para ver o vermelho
+    const r = novoRdo(o, d);
+    if (dow === 0) { r.clima.houve = false; r.clima.motivo = 'Domingo'; r.nada.observacoes = true; }
+    else {
+      const chuva = i === 6;
+      r.clima.manha = chuva ? 'chuva' : 'bom'; r.clima.tarde = chuva ? 'chuva' : (i % 3 ? 'bom' : 'nublado');
+      r.clima.horasParadas = chuva ? 3 : 0;
+      Object.assign(r.maoDeObra, { 'Mestre de obras': 1, 'Pedreiro': 4 + (i % 3), 'Servente': 6 - (chuva ? 2 : 0), 'Carpinteiro': 2, 'Armador': 2, 'Eletricista': i % 2 });
+      r.equipamentos['Betoneira'] = 1; r.equipamentos['Vibrador de imersão'] = i % 2;
+      const s = servicos[i % servicos.length], s2 = servicos[(i + 2) % servicos.length];
+      r.atividades = [{ id: uid(), frente: s[0], descricao: s[1], status: 'andamento' }, { id: uid(), frente: s2[0], descricao: s2[1], status: i % 4 ? 'andamento' : 'concluida' }];
+      r.seguranca = { dds: true, tema: TEMAS_DDS[i % 6], acidente: false, descAcidente: '' };
+      if (chuva) r.ocorrencias = [{ id: uid(), tipo: 'Chuva', descricao: 'Chuva forte pela manhã impediu a concretagem prevista. Equipe remanejada para serviços internos.', impacto: 1 }];
+      else r.nada.ocorrencias = true;
+      r.observacoes = i % 3 ? '' : 'Fiscalização solicitou relatório de ensaios de concreto até sexta-feira.';
+      if (!r.observacoes) r.nada.observacoes = true;
+      if (i % 3 === 0) { r.nada.fotos = false; fotosPend.push([r, s[1]]); } else r.nada.fotos = true;
+    }
+    r.assinaturas.responsavel.nome = 'Eng. Responsável';
+    r.status = i === 1 ? 'rascunho' : 'concluido';
+    if (r.status === 'concluido') r.concluidoEm = d + 'T18:00:00';
+    App.rdos[chaveRdo(o.id, d)] = r;
+  }
+  return Promise.all(tarefas).then(() => fotosPend.reduce((p, [r, leg]) => p.then(() =>
+    fotoExemplo(leg, '#2a4a6d').then(b => { const id = uid(); r.fotos.push({ id, legenda: leg });
+      return Banco.gravar('fotos', id, { id, obraId: o.id, data: r.data, blob: b }); })), Promise.resolve()))
+    .then(() => Promise.all(Object.values(App.rdos).filter(r => r.obraId === o.id).map(r => Banco.gravar('rdos', chaveRdo(o.id, r.data), r))));
+}
+
+/* =====================================================================
+ * RELATÓRIOS — PDF em folha A4 e planilha Excel (.xlsx)
+ * ===================================================================== */
+function abaRelatorios(o) {
+  const hoje = hojeIso(), d = dataDe(hoje);
+  const iniMes = isoDe(new Date(d.getFullYear(), d.getMonth(), 1)), fimMes = isoDe(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  const iniAnt = isoDe(new Date(d.getFullYear(), d.getMonth() - 1, 1)), fimAnt = isoDe(new Date(d.getFullYear(), d.getMonth(), 0));
+  const nMes = MESES[d.getMonth()], nAnt = MESES[(d.getMonth() + 11) % 12];
+  const bt = (ini, fim, rot) => '<button class="item" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left" data-a="pdf" data-ini="' + ini +
+    '" data-fim="' + fim + '" data-rotulo="' + esc(rot) + '" data-fotos="1"><span style="flex:1"><b>' + esc(rot) + '</b><span style="display:block;font-size:12.5px;color:var(--tinta2)">' +
+    br(ini) + ' a ' + br(fim) + ' · ' + rdosDa(o.id).filter(r => r.data >= ini && r.data <= fim).length + ' diário(s)</span></span>' + ic('seta') + '</button>';
+  return '<div class="grade2">' +
+    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pdf') + '</div><h2>Diário em PDF<span class="resumo">Uma folha A4 por dia, fotos na folha seguinte</span></h2></div>' +
+    '<div class="cartao-corpo">' + bt(iniMes, fimMes, cap(nMes) + ' (mês atual)') + bt(iniAnt, fimAnt, cap(nAnt) + ' (mês anterior)') +
+    bt(o.inicio, hoje, 'Obra inteira') +
+    '<label class="rot">Outro período</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="date" class="campo" id="pIni" value="' + iniMes + '">' +
+    '<input type="date" class="campo" id="pFim" value="' + hoje + '"></div>' +
+    '<label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14.5px"><input type="checkbox" id="pFotos" checked style="width:20px;height:20px"> Incluir as fotos</label>' +
+    '<button class="btn sec cheio" data-a="pdfPeriodo">' + ic('pdf') + 'Gerar deste período</button>' +
+    '<p class="dica">' + ic('alerta') + 'Na janela que abrir, escolha "Salvar como PDF".</p></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('planilha') + '</div><h2>Planilha Excel<span class="resumo">Todos os dias, um por linha</span></h2></div>' +
+    '<div class="cartao-corpo"><p style="font-size:14px;color:var(--tinta2);margin:0 0 12px">Abas: Diários, Serviços, Mão de obra, Ocorrências e Fotos. ' +
+    'Bom para o arquivo de encerramento e para medir produtividade.</p>' +
+    '<button class="btn pri cheio" data-a="excel">' + ic('baixar') + 'Baixar planilha (.xlsx)</button></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('escudo') + '</div><h2>Cópia de segurança</h2></div>' +
+    '<div class="cartao-corpo"><p style="font-size:14px;color:var(--tinta2);margin:0 0 12px">Mande junto com o PDF do mês para o escritório.</p>' +
+    '<button class="btn sec cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button></div></div></div>';
+}
+
+/* ---------------- PDF (impressão do navegador) ---------------- */
+const CSS_IMP = `
+#impressao{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:8.6pt;line-height:1.28}
+#impressao .pg{page-break-after:always;break-after:page;position:relative;min-height:270mm;display:flex;flex-direction:column}
+#impressao .pg:last-child{page-break-after:auto;break-after:auto}
+#impressao .cab{display:flex;align-items:center;gap:4mm;border-bottom:2px solid #1d3550;padding-bottom:2.5mm;margin-bottom:3mm}
+#impressao .cab img{max-height:13mm;max-width:38mm}
+#impressao .cab .t{flex:1}
+#impressao .cab .t b{display:block;font-size:12pt;color:#1d3550;letter-spacing:.3px}
+#impressao .cab .t span{font-size:8pt;color:#555}
+#impressao .cab .d{text-align:right;border:1.5px solid #1d3550;border-radius:2mm;padding:1.5mm 3mm}
+#impressao .cab .d b{display:block;font-size:11pt}
+#impressao .cab .d span{font-size:7.5pt;color:#555}
+#impressao .g{display:grid;border-top:.3mm solid #b9c2cc;border-left:.3mm solid #b9c2cc;margin-bottom:2.2mm}
+#impressao .g>div{border-right:.3mm solid #b9c2cc;border-bottom:.3mm solid #b9c2cc;padding:1mm 1.6mm;min-width:0}
+#impressao .g i{display:block;font-style:normal;font-size:6pt;text-transform:uppercase;color:#5b6773;font-weight:700;letter-spacing:.2px}
+#impressao h4{margin:3mm 0 1.2mm;font-size:8pt;text-transform:uppercase;color:#1d3550;letter-spacing:.4px;border-bottom:.3mm solid #b9c2cc;padding-bottom:.6mm}
+#impressao table{border-collapse:collapse;width:100%;margin-bottom:1.5mm}
+#impressao th,#impressao td{border:.3mm solid #b9c2cc;padding:.9mm 1.4mm;text-align:left;vertical-align:top}
+#impressao th{background:#eef2f7;font-size:6.6pt;text-transform:uppercase;letter-spacing:.2px}
+#impressao .tot{font-weight:700;margin:.6mm 0 1.4mm}
+#impressao .txt{white-space:pre-wrap}
+#impressao .ass{margin-top:auto;padding-top:6mm;display:flex;gap:10mm;break-inside:avoid;page-break-inside:avoid}
+#impressao .ass>div{flex:1;text-align:center;font-size:7.6pt}
+#impressao .ass img{height:15mm;max-width:100%;object-fit:contain;display:block;margin:0 auto}
+#impressao .ass .ln{border-top:.3mm solid #333;margin-top:1mm;padding-top:1mm}
+#impressao .ass .vz{height:15mm}
+#impressao .rod{margin-top:2mm;font-size:6.5pt;color:#888;text-align:center}
+#impressao .fotos{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+#impressao .fotos figure{margin:0}
+#impressao .fotos img{width:100%;height:74mm;object-fit:contain;background:#f1f3f5;border:.3mm solid #b9c2cc;display:block}
+#impressao .fotos figcaption{font-size:7.5pt;color:#444;margin-top:1mm;font-style:italic}
+#impressao .capa h1{font-size:22pt;text-align:center;margin:38mm 0 2mm;color:#1d3550}
+#impressao .capa .sub{text-align:center;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:12mm}
+`;
+
+function gerarPdf(p) {
+  const o = obraPor(App.rota.id);
+  const rs = rdosDa(o.id).filter(r => r.data >= p.ini && r.data <= p.fim).sort((a, b) => a.data < b.data ? -1 : 1);
+  if (!rs.length) return toast('Nenhum diário neste período');
+  toast('Montando o PDF…', 2000);
+  const comFotos = p.fotos !== '0';
+  const ids = comFotos ? rs.flatMap(r => (r.fotos || []).map(f => f.id)) : [];
+  Promise.all(ids.map(id => Banco.ler('fotos', id).then(f => f ? blobParaUrl(f.blob).then(u => [id, u]) : [id, '']))).then(pares => {
+    const urls = Object.fromEntries(pares);
+    let h = '<style>' + CSS_IMP + '</style>' + capaPdf(o, rs, p.rotulo);
+    rs.forEach((r, i) => {
+      h += folhaDia(o, r, i + 1, rs.length);
+      if (comFotos && r.fotos && r.fotos.length) {
+        for (let k = 0; k < r.fotos.length; k += 6) h += folhaFotos(o, r, r.fotos.slice(k, k + 6), k, urls);
+      }
+    });
+    let el = $('#impressao'); if (!el) { el = document.createElement('div'); el.id = 'impressao'; document.body.appendChild(el); }
+    el.innerHTML = h;
+    const imgs = Array.from(el.querySelectorAll('img'));
+    Promise.all(imgs.map(im => im.complete ? 1 : new Promise(res => { im.onload = im.onerror = res; }))).then(() => {
+      document.title = 'Diario_' + o.nome.replace(/[^\wÀ-ÿ]+/g, '_') + '_' + p.ini + '_a_' + p.fim;
+      setTimeout(() => { window.print(); document.title = 'Diário de Obras'; }, 150);
+    });
+  });
+}
+
+function cabPdf(o, r) {
+  const c = App.config, pz = prazoDe(o, r.data);
+  return '<div class="cab">' + (c.logo ? '<img src="' + c.logo + '" alt="">' : '') +
+    '<div class="t"><b>RELATÓRIO DIÁRIO DE OBRA</b><span>' + esc(c.empresa || '') + (c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : '') + '</span></div>' +
+    '<div class="d"><b>' + br(r.data) + '</b><span>' + SEMANA[dataDe(r.data).getDay()] + (pz ? ' · dia ' + pz.dia : '') + '</span></div></div>';
+}
+
+function capaPdf(o, rs, rotulo) {
+  const c = App.config;
+  const trab = rs.filter(r => r.clima.houve !== false);
+  const ef = trab.map(totalMao).filter(Boolean);
+  const chuva = rs.filter(r => ['chuva', 'impraticavel'].includes(r.clima.manha) || ['chuva', 'impraticavel'].includes(r.clima.tarde)).length;
+  const imp = rs.reduce((n, r) => n + (r.ocorrencias || []).reduce((m, x) => m + (+x.impacto || 0), 0), 0);
+  const g = (lin, col) => '<div class="g" style="grid-template-columns:repeat(' + col + ',1fr)">' + lin.map(x => '<div><i>' + x[0] + '</i>' + esc(x[1]) + '</div>').join('') + '</div>';
+  return '<div class="pg capa">' + (c.logo ? '<div style="text-align:center;margin-top:20mm"><img src="' + c.logo + '" style="max-height:24mm" alt=""></div>' : '') +
+    '<h1>DIÁRIO DE OBRA</h1><div class="sub">' + esc(String(rotulo || '').toUpperCase()) + '</div>' +
+    g([['Obra', o.nome], ['Contratante', o.cliente || '—'], ['Endereço', [o.endereco, o.cidade].filter(Boolean).join(' — ') || '—'],
+       ['Contrato nº', o.contrato || '—'], ['ART/RRT', o.art || '—'], ['Início', br(o.inicio)],
+       ['Prazo', o.prazoDias ? o.prazoDias + ' dias corridos' : '—'], ['Fiscalização', o.fiscalNome || '—'], ['Construtora', c.empresa || '—']], 3) +
+    '<h4>Resumo do período</h4>' +
+    g([['Diários no período', rs.length], ['Dias com expediente', trab.length], ['Dias sem expediente', rs.length - trab.length],
+       ['Dias com chuva', chuva], ['Efetivo médio', ef.length ? Math.round(ef.reduce((a, b) => a + b, 0) / ef.length) + ' pessoas' : '—'],
+       ['Ocorrências', rs.reduce((n, r) => n + (r.ocorrencias || []).length, 0)], ['Impacto no prazo', imp ? imp + ' dia(s)' : '—'],
+       ['Fotos', rs.reduce((n, r) => n + (r.fotos || []).length, 0)], ['Emitido em', br(hojeIso())]], 3) + '</div>';
+}
+
+function folhaDia(o, r, n, total) {
+  const pz = prazoDe(o, r.data), cl = r.clima;
+  const g = (lin, col) => '<div class="g" style="grid-template-columns:repeat(' + col + ',1fr)">' + lin.map(x => '<div><i>' + x[0] + '</i>' + esc(x[1]) + '</div>').join('') + '</div>';
+  let h = '<div class="pg">' + cabPdf(o, r) +
+    g([['Obra', o.nome], ['Contratante', o.cliente || '—'], ['Contrato / ART', (o.contrato || '—') + ' / ' + (o.art || '—')],
+       ['Prazo', pz && pz.total ? 'dia ' + pz.dia + ' de ' + pz.total + ' · restam ' + pz.restam : (pz ? 'dia ' + pz.dia : '—')],
+       ['Situação', r.status === 'concluido' ? 'Fechado' : 'Rascunho'], ['Turnos', (o.turnoManha || '') + ' / ' + (o.turnoTarde || '')]], 3);
+
+  if (cl.houve === false) {
+    h += '<h4>Expediente</h4>' + g([['Houve expediente', 'Não'], ['Motivo', cl.motivo || '—']], 2);
+  } else {
+    h += '<h4>Clima</h4>' + g([['Manhã', rotClima(cl.manha) || '—'], ['Tarde', rotClima(cl.tarde) || '—'],
+      ['Horas paradas', (cl.horasParadas || 0) + ' h'], ['Chuva', cl.chuvaMm != null ? String(cl.chuvaMm).replace('.', ',') + ' mm' : '—']], 4);
+    const mao = Object.entries(r.maoDeObra).filter(([, v]) => v > 0);
+    if (mao.length || r.terceiros.length) {
+      h += '<h4>Mão de obra</h4>';
+      if (mao.length) h += '<div class="g" style="grid-template-columns:repeat(5,1fr)">' + mao.map(([f, v]) => '<div><i>' + esc(f) + '</i>' + v + '</div>').join('') + '</div>';
+      if (r.terceiros.length) h += '<table><tr><th>Terceirizada</th><th>Serviço</th><th>Pessoas</th></tr>' +
+        r.terceiros.map(t => '<tr><td>' + esc(t.empresa) + '</td><td>' + esc(t.servico) + '</td><td>' + (t.qtd || 0) + '</td></tr>').join('') + '</table>';
+      h += '<div class="tot">Total no canteiro: ' + totalMao(r) + '</div>';
+    }
+    if (r.atividades.length) h += '<h4>Serviços executados</h4><table><tr><th style="width:24%">Frente</th><th>O que foi feito</th><th style="width:14%">Situação</th></tr>' +
+      r.atividades.map(a => '<tr><td>' + esc(a.frente || '—') + '</td><td class="txt">' + esc(a.descricao) + '</td><td>' +
+        ((STATUS_ATIV.find(s => s[0] === a.status) || [, ''])[1]) + '</td></tr>').join('') + '</table>';
+    const eq = Object.entries(r.equipamentos).filter(([, v]) => v > 0);
+    if (eq.length) h += '<h4>Equipamentos</h4><div>' + eq.map(([e, v]) => esc(e) + ' (' + v + ')').join(' · ') + '</div>';
+    if (r.ocorrencias.length) h += '<h4>Ocorrências</h4><table><tr><th style="width:20%">Tipo</th><th>Descrição</th><th style="width:12%">Impacto</th></tr>' +
+      r.ocorrencias.map(x => '<tr><td>' + esc(x.tipo || '—') + '</td><td class="txt">' + esc(x.descricao) + '</td><td>' + (x.impacto ? x.impacto + ' dia(s)' : '—') + '</td></tr>').join('') + '</table>';
+    const s = r.seguranca;
+    if (s.dds !== null || s.acidente !== null) h += '<h4>Segurança do trabalho</h4>' +
+      g([['DDS', s.dds ? 'Sim' + (s.tema ? ' — ' + s.tema : '') : s.dds === false ? 'Não' : '—'], ['Acidente / incidente', s.acidente ? 'SIM' : s.acidente === false ? 'Não' : '—']], 2) +
+      (s.acidente && s.descAcidente ? '<div class="txt">' + esc(s.descAcidente) + '</div>' : '');
+    if (r.materiais.length) h += '<h4>Materiais recebidos</h4><table><tr><th>Material</th><th>Qtd</th><th>Fornecedor</th><th>NF</th></tr>' +
+      r.materiais.map(m => '<tr><td>' + esc(m.material) + '</td><td>' + esc(m.qtd) + '</td><td>' + esc(m.fornecedor) + '</td><td>' + esc(m.nf) + '</td></tr>').join('') + '</table>';
+    if (r.visitas.length) h += '<h4>Visitas</h4><table><tr><th>Nome</th><th>Empresa / órgão</th><th>Motivo</th></tr>' +
+      r.visitas.map(v => '<tr><td>' + esc(v.nome) + '</td><td>' + esc(v.empresa) + '</td><td>' + esc(v.motivo) + '</td></tr>').join('') + '</table>';
+  }
+  if ((r.observacoes || '').trim()) h += '<h4>Observações</h4><div class="txt">' + esc(r.observacoes) + '</div>';
+  if (r.fotos && r.fotos.length) h += '<div style="margin-top:2mm;color:#555">Registro fotográfico: ' + r.fotos.length + ' foto(s) na folha seguinte.</div>';
+
+  const as = r.assinaturas, bloco = (a, papel) => '<div>' + (a && a.img ? '<img src="' + a.img + '" alt="">' : '<div class="vz"></div>') +
+    '<div class="ln">' + esc((a && a.nome) || '') + '<br><span style="color:#666">' + papel + '</span></div></div>';
+  h += '<div class="ass">' + bloco(as.responsavel, 'Responsável técnico' + (App.config.crea ? ' — ' + App.config.crea : '')) +
+    bloco(as.fiscal, 'Fiscalização' + (o.fiscalCargo ? ' — ' + o.fiscalCargo : '')) + '</div>' +
+    '<div class="rod">' + esc(o.nome) + ' · diário ' + n + ' de ' + total + '</div></div>';
+  return h;
+}
+
+function folhaFotos(o, r, fotos, k, urls) {
+  return '<div class="pg">' + cabPdf(o, r) + '<h4 style="margin-top:0">Registro fotográfico' + (k ? ' (continuação)' : '') + '</h4>' +
+    '<div class="fotos">' + fotos.map((f, i) => '<figure><img src="' + (urls[f.id] || '') + '" alt=""><figcaption>Foto ' + (k + i + 1) +
+      (f.legenda ? ' — ' + esc(f.legenda) : '') + '</figcaption></figure>').join('') + '</div></div>';
+}
+
+/* ---------------- EXCEL (.xlsx) — gerado aqui mesmo, sem internet ---------------- */
+function gerarExcel(o) {
+  const rs = rdosDa(o.id).sort((a, b) => a.data < b.data ? -1 : 1);
+  if (!rs.length) return toast('Nenhum diário para exportar');
+  const sim = v => v === true ? 'Sim' : v === false ? 'Não' : '';
+  const abas = [
+    ['Diários', ['Data','Dia da semana','Dia de execução','Situação','Teve expediente','Motivo da parada','Clima manhã','Clima tarde',
+      'Horas paradas','Chuva (mm)','Efetivo total','Mão de obra','Terceirizados','Frentes','Serviços','Equipamentos','Ocorrências',
+      'Dias de impacto','DDS','Tema DDS','Acidente','Materiais','Visitas','Observações','Fotos','Responsável'],
+      rs.map(r => { const pz = prazoDe(o, r.data), c = r.clima; return [
+        br(r.data), SEMANA[dataDe(r.data).getDay()], pz ? pz.dia : '', r.status === 'concluido' ? 'Fechado' : 'Rascunho',
+        c.houve === false ? 'Não' : 'Sim', c.motivo || '', rotClima(c.manha), rotClima(c.tarde), +c.horasParadas || 0,
+        c.chuvaMm == null ? '' : c.chuvaMm, totalMao(r),
+        Object.entries(r.maoDeObra).filter(([, v]) => v > 0).map(([f, v]) => f + ': ' + v).join('; '),
+        r.terceiros.map(t => t.empresa + ' (' + t.qtd + ')').join('; '),
+        [...new Set(r.atividades.map(a => a.frente).filter(Boolean))].join('; '),
+        r.atividades.map(a => a.descricao).filter(Boolean).join(' | '),
+        Object.entries(r.equipamentos).filter(([, v]) => v > 0).map(([e, v]) => e + ': ' + v).join('; '),
+        r.ocorrencias.map(x => (x.tipo || '') + (x.descricao ? ': ' + x.descricao : '')).join(' | '),
+        r.ocorrencias.reduce((n, x) => n + (+x.impacto || 0), 0),
+        sim(r.seguranca.dds), r.seguranca.tema || '', sim(r.seguranca.acidente),
+        r.materiais.map(m => m.material + (m.qtd ? ' ' + m.qtd : '') + (m.nf ? ' NF ' + m.nf : '')).join('; '),
+        r.visitas.map(v => v.nome + (v.motivo ? ' (' + v.motivo + ')' : '')).join('; '),
+        r.observacoes || '', (r.fotos || []).length, (r.assinaturas.responsavel || {}).nome || '' ]; })],
+    ['Serviços', ['Data','Frente','O que foi feito','Situação'],
+      rs.flatMap(r => r.atividades.map(a => [br(r.data), a.frente || '', a.descricao || '', (STATUS_ATIV.find(s => s[0] === a.status) || [, ''])[1]]))],
+    ['Mão de obra', ['Data','Função','Quantidade'],
+      rs.flatMap(r => Object.entries(r.maoDeObra).filter(([, v]) => v > 0).map(([f, v]) => [br(r.data), f, v])
+        .concat(r.terceiros.map(t => [br(r.data), 'Terceirizado: ' + t.empresa, +t.qtd || 0])))],
+    ['Ocorrências', ['Data','Tipo','Descrição','Dias de impacto'],
+      rs.flatMap(r => r.ocorrencias.map(x => [br(r.data), x.tipo || '', x.descricao || '', +x.impacto || 0]))],
+    ['Fotos', ['Data','Nº','Legenda'], rs.flatMap(r => (r.fotos || []).map((f, i) => [br(r.data), i + 1, f.legenda || '']))]
+  ];
+  const blob = montarXlsx(abas);
+  baixarArquivo('Diario_' + o.nome.replace(/[^\wÀ-ÿ]+/g, '_') + '_' + hojeIso() + '.xlsx', blob);
+  toast('Planilha gerada');
+}
+
+function montarXlsx(abas) {
+  const xe = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+  const col = i => { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const folha = (cab, linhas) => {
+    const todas = [cab].concat(linhas);
+    const larg = cab.map((c, j) => Math.min(60, Math.max(10, ...todas.map(l => String(l[j] == null ? '' : l[j]).length + 2))));
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+      '<cols>' + larg.map((w, j) => '<col min="' + (j + 1) + '" max="' + (j + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols><sheetData>' +
+      todas.map((l, i) => '<row r="' + (i + 1) + '">' + l.map((v, j) => {
+        const ref = col(j) + (i + 1), st = i === 0 ? ' s="1"' : '';
+        if (typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>';
+        return '<c r="' + ref + '" t="inlineStr"' + st + '><is><t xml:space="preserve">' + xe(v == null ? '' : v) + '</t></is></c>';
+      }).join('') + '</row>').join('') + '</sheetData></worksheet>';
+  };
+  const arquivos = {
+    '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      abas.map((a, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('') + '</Types>',
+    '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+      abas.map((a, i) => '<sheet name="' + xe(a[0]) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join('') + '</sheets></workbook>',
+    'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      abas.map((a, i) => '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') +
+      '<Relationship Id="rId' + (abas.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    'xl/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF1D3550"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs></styleSheet>'
+  };
+  abas.forEach((a, i) => arquivos['xl/worksheets/sheet' + (i + 1) + '.xml'] = folha(a[1], a[2]));
+  return zipar(arquivos, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+/* ZIP sem compressão (formato aceito por Excel, LibreOffice e Google Planilhas) */
+const _crc = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = _crc[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipar(arquivos, tipo) {
+  const enc = new TextEncoder(), partes = [], central = []; let pos = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255], u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  Object.entries(arquivos).forEach(([nome, txt]) => {
+    const nm = enc.encode(nome), dado = enc.encode(txt), crc = crc32(dado);
+    const loc = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21),
+      ...u32(crc), ...u32(dado.length), ...u32(dado.length), ...u16(nm.length), ...u16(0)]);
+    central.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21),
+      ...u32(crc), ...u32(dado.length), ...u32(dado.length), ...u16(nm.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(pos)]), nm);
+    partes.push(loc, nm, dado); pos += loc.length + nm.length + dado.length;
+  });
+  const tamCentral = central.reduce((n, p) => n + p.length, 0);
+  const fim = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(central.length / 2), ...u16(central.length / 2),
+    ...u32(tamCentral), ...u32(pos), ...u16(0)]);
+  return new Blob([...partes, ...central, fim], { type: tipo });
+}
+
+/* =====================================================================
+ * PARTIDA
+ * ===================================================================== */
+function carregarTudo() {
+  return Promise.all([Banco.ler('config', 'geral'), Banco.todos('obras'), Banco.todos('rdos')]).then(([c, obras, rdos]) => {
+    App.config = c || {}; App.obras = obras || []; App.rdos = {};
+    (rdos || []).forEach(r => App.rdos[chaveRdo(r.obraId, r.data)] = r);
+  });
+}
+Banco.abrir().then(carregarTudo).then(render).catch(e => {
+  document.getElementById('app').innerHTML = '<main><div class="aviso e">Erro ao iniciar: ' + esc(e.message) + '</div></main>';
+});
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+</script>
+</body>
+</html>
