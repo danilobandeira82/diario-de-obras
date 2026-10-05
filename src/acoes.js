@@ -67,10 +67,10 @@ const A = {
   climaAuto: () => preencherClima(),
 
   /* ---- mão de obra / equipamentos ---- */
-  mao: el => { const m = R().maoDeObra; m[el.dataset.k] = lim((+m[el.dataset.k] || 0) + (+el.dataset.d), 0, 500); alterado('maoDeObra'); },
-  equip: el => { const m = R().equipamentos; m[el.dataset.k] = lim((+m[el.dataset.k] || 0) + (+el.dataset.d), 0, 99);
+  mao: el => { const m = R().maoDeObra; m[el.dataset.k] = qtdNova(m[el.dataset.k], el, 500); alterado('maoDeObra'); },
+  equip: el => { const m = R().equipamentos; m[el.dataset.k] = qtdNova(m[el.dataset.k], el, 99);
     if (m[el.dataset.k] > 0) delete R().nada.equipamentos; alterado('equipamentos'); },
-  terc: el => { const t = achar('terceiros', el.dataset.k); t.qtd = lim((+t.qtd || 0) + (+el.dataset.d), 0, 500); alterado('maoDeObra'); },
+  terc: el => { const t = achar('terceiros', el.dataset.k); t.qtd = qtdNova(t.qtd, el, 500); alterado('maoDeObra'); },
   addFuncao: () => escolherDaLista('Qual função?', FUNCOES.filter(f => !(f in R().maoDeObra)), f => { R().maoDeObra[f] = 1; alterado('maoDeObra'); }),
   addEquip: () => escolherDaLista('Qual equipamento?', EQUIPAMENTOS.filter(f => !(f in R().equipamentos)), f => { R().equipamentos[f] = 1; delete R().nada.equipamentos; alterado('equipamentos'); }, true),
   addTerceiro: () => { R().terceiros.push({ id: uid(), empresa: '', servico: '', qtd: 1 }); alterado('maoDeObra'); },

@@ -88,6 +88,17 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .linha-qtd:last-child{border-bottom:0}
 .linha-qtd .nome{flex:1;font-size:15px;min-width:0}
 .linha-qtd.zero .nome{color:var(--tinta3)}
+.linha-num{padding:9px 0 10px;border-bottom:1px solid #edf0f3}
+.linha-num:last-child{border-bottom:0}
+.linha-num .nome{display:block;font-size:15px;margin-bottom:6px}
+.linha-num.zero .nome{color:var(--tinta3)}
+.nums{display:flex;gap:4px}
+.nums>button{flex:1 1 0;min-width:0;height:42px;padding:0;border:1.5px solid var(--linha);border-radius:10px;background:var(--sup2);font-size:16px;font-weight:600;color:var(--tinta2)}
+.nums>button.on{background:var(--aco);border-color:var(--aco);color:#fff}
+.nums .mais1{color:var(--aco);font-size:15px}
+.nums .grande{flex:2.6 1 0;min-width:0;display:flex;align-items:center;height:42px;border-radius:10px;background:var(--aco);color:#fff;overflow:hidden}
+.nums .grande b{flex:1;text-align:center;font-size:17px}
+.nums .grande button{width:34px;height:100%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:20px;font-weight:600}
 .passo{display:flex;align-items:center;border:1.5px solid var(--linha);border-radius:11px;overflow:hidden;flex:none}
 .passo button{width:42px;height:40px;border:0;background:var(--sup2);font-size:20px;color:var(--aco);font-weight:600}
 .passo span{min-width:38px;text-align:center;font-weight:700;font-size:16px}

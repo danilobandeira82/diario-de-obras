@@ -125,6 +125,19 @@ function passo(acao, chave, v, extra) {
     '<span class="num">' + (v || 0) + '</span><button data-a="' + acao + '" data-k="' + esc(chave) + '" data-d="1"' + (extra || '') + ' aria-label="mais">+</button></div>';
 }
 
+/* fileira de números: toca no 2 = 2 pessoas. De 8 em diante, o + continua contando. */
+const qtdNova = (atual, el, max) => lim(el.dataset.v != null ? +el.dataset.v : (+atual || 0) + (+el.dataset.d), 0, max);
+function numeros(acao, chave, v) {
+  v = +v || 0;
+  const at = ' data-a="' + acao + '" data-k="' + esc(chave) + '"';
+  let h = '<div class="nums">';
+  for (let n = 0; n <= 7; n++) h += '<button class="' + (v === n ? 'on' : '') + '"' + at + ' data-v="' + n + '">' + n + '</button>';
+  if (v > 7) h += '<span class="grande on"><button' + at + ' data-d="-1" aria-label="menos um">−</button><b>' + v + '</b>' +
+    '<button' + at + ' data-d="1" aria-label="mais um">+</button></span>';
+  else h += '<button class="mais1"' + at + ' data-v="8" aria-label="8 ou mais">8+</button>';
+  return h + '</div>';
+}
+
 const seletor = (acao, id, valor, vazio) => '<button class="seletor' + (valor ? '' : ' vazio') + '" data-a="' + acao + '" data-id="' + id + '">' +
   '<span>' + esc(valor || vazio) + '</span>' + ic('seta') + '</button>';
 
@@ -153,16 +166,16 @@ function corpoSecao(sec, r, o) {
   }
   case 'maoDeObra': {
     const funcs = Object.keys(r.maoDeObra);
-    let h = funcs.map(f => '<div class="linha-qtd' + (r.maoDeObra[f] ? '' : ' zero') + '"><span class="nome">' + esc(f) + '</span>' +
-      passo('mao', f, r.maoDeObra[f]) + '</div>').join('');
+    let h = funcs.map(f => '<div class="linha-num' + (r.maoDeObra[f] ? '' : ' zero') + '"><span class="nome">' + esc(f) + '</span>' +
+      numeros('mao', f, r.maoDeObra[f]) + '</div>').join('');
     h += '<button class="mais" style="margin-top:10px" data-a="addFuncao">' + ic('mais') + 'Outra função</button>';
     if (r.terceiros.length) {
       h += '<label class="rot">Terceirizados</label>' + r.terceiros.map(t => '<div class="item"><div class="item-topo"><b>' + esc(t.empresa || 'Empresa') + '</b>' +
         '<button class="x" data-a="rmLista" data-lista="terceiros" data-id="' + t.id + '">' + ic('x') + '</button></div>' +
         '<input class="campo" placeholder="Empresa" value="' + esc(t.empresa) + '" data-c="campoLista" data-lista="terceiros" data-id="' + t.id + '" data-k="empresa">' +
-        '<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="campo" placeholder="Serviço" value="' + esc(t.servico) +
+        '<input class="campo" style="margin-top:8px" placeholder="Serviço" value="' + esc(t.servico) +
         '" data-c="campoLista" data-lista="terceiros" data-id="' + t.id + '" data-k="servico">' +
-        passo('terc', t.id, t.qtd) + '</div></div>').join('');
+        '<div class="linha-num"><span class="nome">Pessoas</span>' + numeros('terc', t.id, t.qtd) + '</div></div>').join('');
     }
     h += '<button class="mais" style="margin-top:8px" data-a="addTerceiro">' + ic('mais') + 'Empresa terceirizada</button>';
     h += '<div class="total"><span>Total no canteiro</span><span class="num">' + totalMao(r) + '</span></div>';
@@ -181,8 +194,8 @@ function corpoSecao(sec, r, o) {
     return h;
   }
   case 'equipamentos': {
-    let h = Object.keys(r.equipamentos).map(e => '<div class="linha-qtd' + (r.equipamentos[e] ? '' : ' zero') + '"><span class="nome">' + esc(e) + '</span>' +
-      passo('equip', e, r.equipamentos[e]) + '</div>').join('');
+    let h = Object.keys(r.equipamentos).map(e => '<div class="linha-num' + (r.equipamentos[e] ? '' : ' zero') + '"><span class="nome">' + esc(e) + '</span>' +
+      numeros('equip', e, r.equipamentos[e]) + '</div>').join('');
     h += '<button class="mais" style="margin-top:10px" data-a="addEquip">' + ic('mais') + 'Outro equipamento</button>';
     if (!Object.values(r.equipamentos).some(v => v > 0)) h += botaoNada('equipamentos', r, 'Nenhum equipamento hoje');
     return h;
