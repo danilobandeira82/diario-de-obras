@@ -5,24 +5,28 @@
 /* ---------- clima automático (Open-Meteo, grátis, sem cadastro) ----------
  * Só usa a internet quando o engenheiro toca no botão. Nada do diário sai do aparelho:
  * vai apenas o nome da cidade e a data. */
+const UFS = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará', DF:'Distrito Federal', ES:'Espírito Santo',
+  GO:'Goiás', MA:'Maranhão', MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará', PB:'Paraíba', PR:'Paraná',
+  PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro', RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima',
+  SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins' };
 function preencherClima() {
   const o = App.obraAtual, r = R();
   if (!o.cidade) { toast('Cadastre a cidade na aba Obra → Editar'); return; }
   if (!navigator.onLine) { toast('Sem internet agora. Marque o clima à mão.'); return; }
   toast('Buscando o clima…', 1500);
-  const geo = o.lat ? Promise.resolve() : fetch('https://geocoding-api.open-meteo.com/v1/search?count=5&language=pt&countryCode=BR&name=' +
-      encodeURIComponent(o.cidade.split(/[,\-–]/)[0].trim()))
+  const sem = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const geo = o.lat ? Promise.resolve() : fetch('https://geocoding-api.open-meteo.com/v1/search?count=10&language=pt&countryCode=BR&name=' +
+      encodeURIComponent(o.cidade.split(/[,/\-–]/)[0].trim()))
     .then(x => x.json()).then(j => {
       if (!j.results || !j.results.length) throw new Error('Cidade não encontrada: ' + o.cidade);
-      const uf = (o.cidade.match(/\b([A-Z]{2})\b/) || [])[1];
-      const UFS = { PR:'Paraná', SP:'São Paulo', SC:'Santa Catarina', RS:'Rio Grande do Sul', MS:'Mato Grosso do Sul', MG:'Minas Gerais', RJ:'Rio de Janeiro', GO:'Goiás', MT:'Mato Grosso', BA:'Bahia', DF:'Distrito Federal' };
-      const c = (uf && j.results.find(x => x.admin1 === UFS[uf])) || j.results[0];
+      const uf = (o.cidade.toUpperCase().match(/[,/\-–\s]\s*([A-Z]{2})\s*$/) || [])[1];
+      const c = (uf && UFS[uf] && j.results.find(x => sem(x.admin1) === sem(UFS[uf]))) || j.results[0];
       o.lat = c.latitude; o.lon = c.longitude; return salvarObra(o);
     });
   geo.then(() => {
     const dias = difDias(r.data, hojeIso());
     const base = dias > 80 ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
-    return fetch(base + '?latitude=' + o.lat + '&longitude=' + o.lon + '&hourly=weather_code,precipitation&timezone=America%2FSao_Paulo' +
+    return fetch(base + '?latitude=' + o.lat + '&longitude=' + o.lon + '&hourly=weather_code,precipitation&timezone=auto' +
       '&start_date=' + r.data + '&end_date=' + r.data).then(x => x.json());
   }).then(j => {
     if (!j.hourly) throw new Error('Clima indisponível para esta data');

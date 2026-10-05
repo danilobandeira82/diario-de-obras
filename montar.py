@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monta o app em dist/ a partir de src/.  Uso:  python3 montar.py"""
+"""Monta o app em docs/ (e na raiz) a partir de src/.  Uso:  python3 montar.py"""
 import pathlib, shutil, zipfile
 raiz = pathlib.Path(__file__).parent
 src, dist = raiz / 'src', raiz / 'docs'   # o GitHub Pages publica a pasta docs/
@@ -36,6 +36,9 @@ html = f"""<!doctype html>
 (dist / 'index.html').write_text(html, encoding='utf-8')
 for n in ['sw.js', 'manifest.json', 'icone.svg']: shutil.copy(src / n, dist / n)
 (dist / '.nojekyll').write_text('')
+# cópia também na raiz: o site funciona com o Pages apontando para a raiz ou para docs/
+(raiz / 'index.html').write_text(html, encoding='utf-8')
+for n in ['sw.js', 'manifest.json', 'icone.svg']: shutil.copy(src / n, raiz / n)
 # versão de arquivo único para mandar por zip
 (raiz / 'DIARIO-DE-OBRAS.html').write_text(html, encoding='utf-8')
 print(f"docs/index.html  {len(html)//1024} KB")
