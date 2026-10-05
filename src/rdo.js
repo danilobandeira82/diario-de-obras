@@ -276,6 +276,8 @@ function corpoSecao(sec, r, o) {
     return ['responsavel', 'fiscal'].map(q => {
       const a = r.assinaturas[q];
       return '<label class="rot">' + (q === 'responsavel' ? 'Responsável técnico' : 'Fiscalização (opcional)') + '</label>' +
+        (q === 'fiscal' ? '<textarea class="campo" style="min-height:70px;margin-bottom:8px" placeholder="Observações da fiscalização (o fiscal escreve aqui, se quiser)" data-c="obsFiscal">' +
+          esc(r.obsFiscal || '') + '</textarea>' : '') +
         '<input class="campo" style="margin-bottom:8px" placeholder="Nome" value="' + esc(a.nome) + '" data-c="assNome" data-q="' + q + '">' +
         (a.img ? '<img class="assin-img" src="' + a.img + '" alt="assinatura"><button class="btn fant" data-a="refazerAss" data-q="' + q + '">Assinar de novo</button>'
                : '<canvas class="assin" data-ass="' + q + '"></canvas><div style="display:flex;gap:8px;margin-top:6px">' +

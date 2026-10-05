@@ -172,6 +172,8 @@ function confirmar(titulo, texto, rotulo, perigo) {
       f => f.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { fecharFolha(); res(b.dataset.r === '1'); }));
   });
 }
+/* nome de arquivo sem acento nem símbolo (alguns aparelhos trocam nomes com acento por "download") */
+const nomeArq = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'obra';
 function baixarArquivo(nome, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = nome;

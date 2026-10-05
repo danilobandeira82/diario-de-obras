@@ -130,8 +130,9 @@ const A = {
 
   /* ---- relatórios / config ---- */
   pdfFotos: el => { App.pdfFotos = el.dataset.v === '1'; const y = scrollY; render(); scrollTo(0, y); },
-  pdf: el => gerarPdf({ ini: el.dataset.ini, fim: el.dataset.fim, rotulo: el.dataset.rotulo, fotos: App.pdfFotos === false ? '0' : '1' }),
-  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: App.pdfFotos === false ? '0' : '1' }),
+  pdfPer: el => { App.pdfPer = el.dataset.v === 'outro' ? 'outro' : +el.dataset.v; const y = scrollY; render(); scrollTo(0, y); },
+  pdfSalvar: () => { const o = obraPor(App.rota.id); gerarPdfArquivo(Object.assign(periodoEscolhido(o), { fotos: App.pdfFotos === false ? '0' : '1' }), 'salvar'); },
+  pdfImprimir: () => { const o = obraPor(App.rota.id); gerarPdfArquivo(Object.assign(periodoEscolhido(o), { fotos: App.pdfFotos === false ? '0' : '1' }), 'abrir'); },
   excel: () => gerarExcel(obraPor(App.rota.id)),
   backup: () => salvarBackup(),
   testar: () => testarAparelho()
@@ -204,6 +205,7 @@ document.addEventListener('input', e => {
   if (!c) return;
   if (c === 'campoLista') { const x = achar(el.dataset.lista, el.dataset.id); x[el.dataset.k] = el.value; alterado(); }
   else if (c === 'obs') { R().observacoes = el.value; if (el.value.trim()) delete R().nada.observacoes; alterado(); }
+  else if (c === 'obsFiscal') { R().obsFiscal = el.value; alterado(); }
   else if (c === 'segTxt') { R().seguranca.descAcidente = el.value; alterado(); }
   else if (c === 'assNome') { R().assinaturas[el.dataset.q].nome = el.value; alterado(); }
   else if (c === 'cfg') { App.config[el.dataset.k] = el.value; clearTimeout(A._tc); A._tc = setTimeout(salvarConfig, 400); }

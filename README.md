@@ -57,4 +57,5 @@ python3 montar.py
 | `src/rdo.js` | a tela do dia |
 | `src/acoes.js` | tratamento de cliques e digitação |
 | `src/extras.js` | clima automático, assinatura, cópia de segurança, obra de exemplo |
-| `src/relatorios.js` | PDF (semana, mês, ano; com ou sem fotos) e Excel |
+| `src/relatorios.js` | tela de relatórios e Excel |
+| `src/pdf.js` | PDF A4 gerado no próprio app (um dia por folha, fotos 6 por folha) |

@@ -88,6 +88,10 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .linha-qtd:last-child{border-bottom:0}
 .linha-qtd .nome{flex:1;font-size:15px;min-width:0}
 .linha-qtd.zero .nome{color:var(--tinta3)}
+.item.escolha{width:100%;display:flex;align-items:center;gap:11px;text-align:left}
+.item.escolha .bola{width:20px;height:20px;border-radius:50%;border:2px solid var(--linha);flex:none}
+.item.escolha.on{border-color:var(--aco);box-shadow:0 0 0 1px var(--aco)}
+.item.escolha.on .bola{border:6px solid var(--aco)}
 .copiar-bloco{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 12px;padding:9px 12px;border:1.5px dashed var(--acao);border-radius:11px;
   background:var(--acao-suave);color:var(--acao2);font-size:14px;font-weight:600;text-align:left}
 .copiar-bloco svg{width:18px;height:18px;flex:none}
@@ -231,12 +235,6 @@ textarea.campo{min-height:96px;resize:vertical}
 .interruptor.on{background:var(--ok)} .interruptor.on::after{left:23px}
 
 /* impressão */
-#impressao{display:none}
-@media print{
-  @page{size:A4;margin:11mm}
-  body{background:#fff;padding:0}
-  body>*:not(#impressao){display:none !important}
-  #impressao{display:block !important}
 }
 
 .seletor{width:100%;display:flex;align-items:center;gap:8px;border:1.5px solid var(--linha);background:var(--sup);
