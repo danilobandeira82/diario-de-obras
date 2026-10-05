@@ -138,6 +138,7 @@ const Nuvem = {
   receber() {
     let desde = (this.cfg && this.cfg.desde) || 0, mudou = false;
     const pagina = () => this.chamar('mudancas', { desde, limite: 60 }).then(j => {
+      j.itens = j.itens || [];
       return j.itens.reduce((p, it) => p.then(() => this.aplicar(it)).then(m => { if (m) mudou = true; }), Promise.resolve()).then(() => {
         if (j.mais && j.cursor > desde) { desde = j.cursor; return pagina(); }
         // volta 5 minutos: a busca do Drive às vezes demora a enxergar alterações recentes

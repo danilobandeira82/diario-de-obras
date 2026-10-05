@@ -29,7 +29,7 @@ function receberConvite() {
 
 /* primeira vez num aparelho: pede o código da empresa e o nome (só se o servidor estiver fixo no app) */
 function pedirEntrada() {
-  if (!SERVIDOR_PADRAO || Nuvem.ativa()) return;
+  if (!SERVIDOR_PADRAO || Nuvem.ativa() || document.getElementById('folha')) return;
   try { if (localStorage.getItem('semNuvem') === '1') return; } catch (e) {}
   abrirFolha('<h3>Entrar no Diário de Obras</h3><p style="font-size:14.5px;color:var(--tinta2);margin:0 0 10px">Os diários ficam salvos na nuvem da construtora ' +
     'e abrem em qualquer celular ou computador.</p>' +
@@ -48,7 +48,7 @@ function pedirEntrada() {
 }
 
 Banco.abrir().then(carregarTudo).then(() => Nuvem.carregar()).then(() => {
-  render(); if (location.hash.indexOf('#convite=') === 0) receberConvite(); else pedirEntrada(); Nuvem.sincronizar();
+  render(); if (location.hash.indexOf('#convite=') === 0) receberConvite(); Nuvem.sincronizar();
 }).catch(e => {
   document.getElementById('app').innerHTML = '<main><div class="aviso e">Erro ao iniciar: ' + esc(e.message) + '</div></main>';
 });

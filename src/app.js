@@ -73,6 +73,7 @@ function render() {
   else if (r.tela === 'rdo') html = obraPor(r.id) ? telaRdo(obraPor(r.id), r.data) : telaInicio();
   corpo.innerHTML = html;
   App.redesenharDepois = false; Nuvem.mostrar();
+  if (location.hash.indexOf('#convite=') !== 0) pedirEntrada();
   window.scrollTo(0, 0);
   if (App.aposRender) { const f = App.aposRender; App.aposRender = null; f(); }
 }
