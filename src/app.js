@@ -360,7 +360,8 @@ function cartaoNuvem() {
   } else {
     h += '<p style="font-size:14px;color:var(--tinta2);margin:0 0 6px">Hoje os diários ficam só neste aparelho. Conecte à nuvem da construtora para ' +
       'guardar tudo no Google Drive e abrir em qualquer celular ou computador. Sem internet, o app continua funcionando e envia quando a conexão voltar.</p>' +
-      '<label class="rot">Endereço do servidor</label><input class="campo" id="nvUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(n.url || '') + '">' +
+      (SERVIDOR_PADRAO ? '<input type="hidden" id="nvUrl" value="' + esc(SERVIDOR_PADRAO) + '">' :
+        '<label class="rot">Endereço do servidor</label><input class="campo" id="nvUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(n.url || '') + '">') +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="rot">Código da empresa</label><input class="campo" id="nvCod"></div>' +
       '<div><label class="rot">Seu nome</label><input class="campo" id="nvNome" value="' + esc(App.config.responsavel || '') + '"></div></div>' +
       '<button class="btn pri cheio" style="margin-top:12px" data-a="nuvemLigar">' + ic('ok') + 'Conectar</button>' +

@@ -4,6 +4,9 @@
  * uma fila do que falta enviar. Com internet: envia a fila e baixa o que
  * mudou em outros aparelhos. Vale sempre a alteração mais recente.
  * ===================================================================== */
+/* Endereço do servidor da construtora (Google Apps Script). Com ele aqui, basta abrir o site
+ * e digitar o código da empresa e o nome — ninguém precisa colar endereço. */
+const SERVIDOR_PADRAO = '';
 const LOJAS_REG = ['obras', 'rdos', 'config'], LOJAS_ARQ = ['fotos', 'docs'];
 
 const Nuvem = {

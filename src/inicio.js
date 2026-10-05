@@ -27,8 +27,28 @@ function receberConvite() {
     });
 }
 
+/* primeira vez num aparelho: pede o código da empresa e o nome (só se o servidor estiver fixo no app) */
+function pedirEntrada() {
+  if (!SERVIDOR_PADRAO || Nuvem.ativa()) return;
+  try { if (localStorage.getItem('semNuvem') === '1') return; } catch (e) {}
+  abrirFolha('<h3>Entrar no Diário de Obras</h3><p style="font-size:14.5px;color:var(--tinta2);margin:0 0 10px">Os diários ficam salvos na nuvem da construtora ' +
+    'e abrem em qualquer celular ou computador.</p>' +
+    '<label class="rot">Código da empresa</label><input class="campo" id="enCod" autocomplete="off" autocapitalize="off">' +
+    '<label class="rot">Seu nome</label><input class="campo" id="enNome" placeholder="Ex.: Eng. João Silva" style="margin-bottom:12px">' +
+    '<button class="btn pri cheio" id="enOk">' + ic('ok') + 'Entrar</button>' +
+    '<button class="btn fant cheio" id="enSem" style="margin-top:6px">Usar sem nuvem, só neste aparelho</button>', f => {
+      f.querySelector('#enOk').onclick = () => {
+        const b = f.querySelector('#enOk'); b.disabled = true; toast('Conectando…', 2000);
+        Nuvem.conectar(SERVIDOR_PADRAO, f.querySelector('#enCod').value, f.querySelector('#enNome').value)
+          .then(() => { fecharFolha(); toast('Pronto! Baixando os diários da construtora…', 4000); render(); })
+          .catch(e => { b.disabled = false; toast(e.message, 5000); });
+      };
+      f.querySelector('#enSem').onclick = () => { try { localStorage.setItem('semNuvem', '1'); } catch (e) {} fecharFolha(); };
+    });
+}
+
 Banco.abrir().then(carregarTudo).then(() => Nuvem.carregar()).then(() => {
-  render(); receberConvite(); Nuvem.sincronizar();
+  render(); if (location.hash.indexOf('#convite=') === 0) receberConvite(); else pedirEntrada(); Nuvem.sincronizar();
 }).catch(e => {
   document.getElementById('app').innerHTML = '<main><div class="aviso e">Erro ao iniciar: ' + esc(e.message) + '</div></main>';
 });
