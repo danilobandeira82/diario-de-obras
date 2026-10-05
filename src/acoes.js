@@ -53,7 +53,12 @@ const A = {
         Promise.all(ps).then(() => { toast('Obra excluída'); ir('#/'); });
       });
   },
-  abrirDoc: el => Banco.ler('docs', el.dataset.id).then(d => { if (!d) return toast('Arquivo não encontrado');
+  abrirDoc: el => Banco.ler('docs', el.dataset.id).then(d => {
+    if (d || !Nuvem.ativa()) return d;
+    const o = obraPor(App.rota.id), meta = (o.docs || []).find(x => x.id === el.dataset.id); if (!meta) return null;
+    toast('Baixando da nuvem…', 2000);
+    return Nuvem.baixarArquivo('docs', meta.id, o.id, meta).then(b => ({ nome: meta.nome, blob: b })).catch(() => null);
+  }).then(d => { if (!d) return toast('Arquivo não encontrado');
     const u = URL.createObjectURL(d.blob); const w = window.open(u, '_blank'); if (!w) baixarArquivo(d.nome, d.blob); }),
   apagarDoc: el => confirmar('Remover documento?', 'O arquivo sai deste aparelho.', 'Remover', true).then(ok => { if (!ok) return;
     const o = obraPor(App.rota.id); o.docs = o.docs.filter(d => d.id !== el.dataset.id);
@@ -135,7 +140,21 @@ const A = {
   pdfImprimir: () => { const o = obraPor(App.rota.id); gerarPdfArquivo(Object.assign(periodoEscolhido(o), { fotos: App.pdfFotos === false ? '0' : '1' }), 'abrir'); },
   excel: () => gerarExcel(obraPor(App.rota.id)),
   backup: () => salvarBackup(),
-  testar: () => testarAparelho()
+  testar: () => testarAparelho(),
+  nuvemLigar: el => { el.disabled = true; toast('Conectando…', 2000);
+    Nuvem.conectar($('#nvUrl').value, $('#nvCod').value, $('#nvNome').value)
+      .then(() => { toast('Conectado! Enviando os dados deste aparelho…', 3500); render(); })
+      .catch(e => { el.disabled = false; toast(e.message, 5000); }); },
+  nuvemSinc: () => { Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
+  nuvemTudo: () => { Nuvem.cfg.desde = 0; Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
+  nuvemSair: () => confirmar('Desconectar este aparelho?', 'Os dados continuam no Drive e neste aparelho, mas param de sincronizar aqui.' +
+      (Nuvem.pendentes() ? ' ATENÇÃO: ' + Nuvem.pendentes() + ' alteração(ões) ainda não foram enviadas.' : ''), 'Desconectar', true)
+    .then(ok => { if (ok) Nuvem.desconectar().then(render); }),
+  nuvemConvite: () => { const u = Nuvem.convite();
+    const fim = () => toast('Convite copiado — mande por WhatsApp ou e-mail', 3500);
+    if (navigator.share) navigator.share({ title: 'Diário de Obras', text: 'Acesse o Diário de Obras da construtora:', url: u }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(u).then(fim, () => prompt('Copie o convite:', u));
+    else prompt('Copie o convite:', u); },
 };
 
 function escolherDaLista(titulo, itens, aoEscolher, livre) {

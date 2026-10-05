@@ -7,8 +7,8 @@ const chaveRdo = (obraId, data) => obraId + '|' + data;
 const obraPor = id => App.obras.find(o => o.id === id);
 const rdosDa = obraId => Object.values(App.rdos).filter(r => r.obraId === obraId);
 
-function salvarConfig() { return Banco.gravar('config', 'geral', App.config); }
-function salvarObra(o) { return Banco.gravar('obras', o.id, o); }
+function salvarConfig() { App.config.atualizadoEm = new Date().toISOString(); return Banco.gravar('config', 'geral', App.config); }
+function salvarObra(o) { o.atualizadoEm = new Date().toISOString(); return Banco.gravar('obras', o.id, o); }
 
 /* Status de um dia para o calendário */
 function statusDia(obra, iso) {
@@ -72,6 +72,7 @@ function render() {
   else if (r.tela === 'obra') html = obraPor(r.id) ? telaObra(obraPor(r.id), r.aba) : telaInicio();
   else if (r.tela === 'rdo') html = obraPor(r.id) ? telaRdo(obraPor(r.id), r.data) : telaInicio();
   corpo.innerHTML = html;
+  App.redesenharDepois = false; Nuvem.mostrar();
   window.scrollTo(0, 0);
   if (App.aposRender) { const f = App.aposRender; App.aposRender = null; f(); }
 }
@@ -83,14 +84,13 @@ function telaInicio() {
     '<button class="ic" data-a="ir" data-h="#/config" aria-label="Configurações">' + ic('config') + '</button>');
   h += '<main>';
 
-  const dSemCopia = App.config.ultimoBackup ? difDias(App.config.ultimoBackup, hojeIso()) : null;
+  h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>';
   if (Banco.motor !== 'indexeddb')
     h += '<div class="aviso e">' + ic('alerta') + '<div><b>Este navegador não está guardando os dados.</b> ' +
       'Abra no Google Chrome ou Edge.</div></div>';
-  else if (ativas.length && (dSemCopia === null || dSemCopia >= 7))
-    h += '<div class="aviso a">' + ic('alerta') + '<div><b>' + (dSemCopia === null ? 'Nenhuma cópia de segurança ainda.' :
-      'Última cópia de segurança há ' + dSemCopia + ' dias.') + '</b> ' +
-      '<a href="#/config" style="color:inherit">Fazer agora</a></div></div>';
+  else if (!Nuvem.ativa())
+    h += '<div class="aviso a">' + ic('alerta') + '<div><b>Os diários estão só neste aparelho.</b> ' +
+      '<a href="#/config" style="color:inherit">Ligar a nuvem</a> para abrir no celular e no computador.</div></div>';
 
   if (!ativas.length) {
     h += '<div class="cartao vazio">' + ic('predio') + '<h3>Nenhuma obra ainda</h3>' +
@@ -209,7 +209,7 @@ function abaFotos(o) {
 const _urls = {};
 function urlFoto(id) {
   if (_urls[id]) return Promise.resolve(_urls[id]);
-  return Banco.ler('fotos', id).then(f => f && f.blob ? (_urls[id] = URL.createObjectURL(f.blob)) : '');
+  return obterFotoBlob(id).then(b => b ? (_urls[id] = URL.createObjectURL(b)) : '');
 }
 function carregarMiniaturas() {
   document.querySelectorAll('img[data-foto]').forEach(img => urlFoto(img.dataset.foto).then(u => { if (u) img.src = u; }));
@@ -343,9 +343,35 @@ function telaObraForm(id) {
 }
 
 /* ---------------- CONFIGURAÇÕES ---------------- */
+function cartaoNuvem() {
+  const n = Nuvem.cfg || {};
+  let h = '<div class="cartao larga"><div class="cartao-cab"><div class="ico">' + ic('subir') + '</div><h2>Nuvem da construtora' +
+    '<span class="resumo">Google Drive — abre no celular e no computador</span></h2></div><div class="cartao-corpo">';
+  if (Nuvem.ativa()) {
+    h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>' +
+      '<p style="font-size:14px;margin:0 0 4px"><b>Conectado como:</b> ' + esc(n.nome) + '</p>' +
+      '<p style="font-size:13px;color:var(--tinta2);margin:0 0 12px;word-break:break-all">' + esc(n.url.slice(0, 60)) + '…</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
+      '<button class="btn pri" data-a="nuvemSinc">' + ic('subir') + 'Sincronizar agora</button>' +
+      '<button class="btn sec" data-a="nuvemConvite">' + ic('copiar') + 'Convite p/ engenheiro</button></div>' +
+      '<p class="dica">O convite é um link: o engenheiro abre no celular ou no computador, digita o nome e pronto.</p>' +
+      '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px"><button class="btn fant" data-a="nuvemTudo">Baixar tudo de novo</button>' +
+      '<button class="btn fant" style="color:var(--erro)" data-a="nuvemSair">Desconectar este aparelho</button></div>';
+  } else {
+    h += '<p style="font-size:14px;color:var(--tinta2);margin:0 0 6px">Hoje os diários ficam só neste aparelho. Conecte à nuvem da construtora para ' +
+      'guardar tudo no Google Drive e abrir em qualquer celular ou computador. Sem internet, o app continua funcionando e envia quando a conexão voltar.</p>' +
+      '<label class="rot">Endereço do servidor</label><input class="campo" id="nvUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(n.url || '') + '">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="rot">Código da empresa</label><input class="campo" id="nvCod"></div>' +
+      '<div><label class="rot">Seu nome</label><input class="campo" id="nvNome" value="' + esc(App.config.responsavel || '') + '"></div></div>' +
+      '<button class="btn pri cheio" style="margin-top:12px" data-a="nuvemLigar">' + ic('ok') + 'Conectar</button>' +
+      '<p class="dica">Recebeu um link de convite? Basta abrir o link. Para criar o servidor (uma vez só, pela diretoria): ' +
+      '<a href="https://github.com/danilobandeira82/diario-de-obras/blob/main/servidor/COMO-INSTALAR.md" target="_blank" rel="noopener">passo a passo</a>.</p>';
+  }
+  return h + '</div></div>';
+}
 function telaConfig() {
   const c = App.config;
-  let h = topo('Configurações', '', '#/') + '<main><div class="grade2">';
+  let h = topo('Configurações', '', '#/') + '<main><div class="grade2">' + cartaoNuvem();
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('predio') + '</div><h2>Empresa</h2></div><div class="cartao-corpo">' +
     '<label class="rot">Nome da construtora (sai no PDF)</label><input class="campo" data-c="cfg" data-k="empresa" value="' + esc(c.empresa || '') + '">' +
     '<label class="rot">CNPJ</label><input class="campo" data-c="cfg" data-k="cnpj" value="' + esc(c.cnpj || '') + '">' +
@@ -356,8 +382,9 @@ function telaConfig() {
     '<label class="btn sec cheio">' + ic('subir') + (c.logo ? 'Trocar logo' : 'Enviar logo') + '<input type="file" accept="image/*" hidden data-c="logo"></label></div></div>';
 
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('escudo') + '</div><h2>Cópia de segurança</h2></div><div class="cartao-corpo">' +
-    '<p style="font-size:14px;color:var(--tinta2);margin:0 0 10px">Os dados ficam só neste aparelho. Salve uma cópia toda semana e guarde fora dele ' +
-    '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.</p>' +
+    '<p style="font-size:14px;color:var(--tinta2);margin:0 0 10px">' + (Nuvem.ativa() ? 'Com a nuvem ligada, tudo já fica no Google Drive. ' +
+      'A cópia é uma garantia extra (um arquivo com tudo).' : 'Os dados ficam só neste aparelho. Salve uma cópia toda semana e guarde fora dele ' +
+    '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.') + '</p>' +
     '<p style="font-size:13.5px;margin:0 0 12px"><b>Última cópia:</b> ' + (c.ultimoBackup ? br(c.ultimoBackup) : 'nunca') + '</p>' +
     '<button class="btn pri cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button>' +
     '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label>' +

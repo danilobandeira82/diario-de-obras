@@ -61,6 +61,7 @@ function telaRdo(o, data) {
     h += '<div class="aviso o">' + ic('ok') + '<div><b>Diário fechado' + (r.concluidoEm ? ' em ' + br(r.concluidoEm.slice(0, 10)) : '') +
       '.</b> Você ainda pode corrigir; a alteração fica registrada.</div></div>';
 
+  h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>';
   if (pz) h += '<div class="faixa-prazo"><b>RDO nº ' + Math.max(pz.dia, 0) + '</b><span>' + textoPrazo(pz) + '</span></div>';
 
   // atalho: copiar do último dia
@@ -296,6 +297,7 @@ const _tGrava = {};
 function alterado(secRedesenhar) {
   const r = App.rdoAtual;
   r.atualizadoEm = new Date().toISOString();
+  if (Nuvem.cfg && Nuvem.cfg.nome) r.atualizadoPor = Nuvem.cfg.nome;
   const k = chaveRdo(r.obraId, r.data);
   App.rdos[k] = JSON.parse(JSON.stringify(r));
   if (secRedesenhar) redesenhar(secRedesenhar);
@@ -304,7 +306,7 @@ function alterado(secRedesenhar) {
   clearTimeout(_tGrava[k]);
   _tGrava[k] = setTimeout(() => {
     delete _tGrava[k];
-    Banco.gravar('rdos', k, App.rdos[k]).then(() => { const s2 = $('#salvo'); if (s2) s2.textContent = 'Salvo ✓'; })
+    Banco.gravar('rdos', k, App.rdos[k]).then(() => { const s2 = $('#salvo'); if (s2) s2.textContent = Nuvem.curto(); })
       .catch(e => { toast('ERRO AO SALVAR: ' + e.message, 5000); });
   }, 400);
 }

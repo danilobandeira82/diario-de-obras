@@ -41,7 +41,7 @@ svg{flex:none}
 .topo .ic{background:rgba(255,255,255,.12);border:0;color:#fff;width:40px;height:40px;
   border-radius:11px;display:grid;place-items:center;flex:none}
 .topo .ic svg{width:21px;height:21px}
-.salvo{font-size:12px;color:#b8c6d6;white-space:nowrap}
+.salvo{font-size:12px;color:#b8c6d6;max-width:120px;text-align:right;line-height:1.25}
 
 /* abas da obra */
 .abas{position:sticky;top:56px;z-index:25;background:var(--aco);display:flex;gap:2px;
@@ -107,6 +107,9 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .item.escolha .bola{width:20px;height:20px;border-radius:50%;border:2px solid var(--linha);flex:none}
 .item.escolha.on{border-color:var(--aco);box-shadow:0 0 0 1px var(--aco)}
 .item.escolha.on .bola{border:6px solid var(--aco)}
+.nuvem-status{font-size:13px;font-weight:600;padding:7px 12px;border-radius:10px;margin-bottom:10px}
+.nuvem-status.o{background:var(--ok-s);color:var(--ok)} .nuvem-status.a{background:var(--alerta-s);color:var(--alerta)} .nuvem-status.e{background:var(--erro-s);color:var(--erro)}
+.nuvem-status::before{content:'☁ '}
 .copiar-bloco{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 12px;padding:9px 12px;border:1.5px dashed var(--acao);border-radius:11px;
   background:var(--acao-suave);color:var(--acao2);font-size:14px;font-weight:600;text-align:left}
 .copiar-bloco svg{width:18px;height:18px;flex:none}
@@ -371,8 +374,9 @@ const Banco = {
     });
   },
   ler(loja, k) { return this._op(loja, 'readonly', s => s.get(k)).then(r => r && r.result !== undefined ? r.result : r); },
-  gravar(loja, k, v) { return this._op(loja, 'readwrite', s => { s.put(v, k); }); },
-  apagar(loja, k) { return this._op(loja, 'readwrite', s => { s.delete(k); }); },
+  /* semFila = true quando o dado veio da nuvem (não precisa ser enviado de volta) */
+  gravar(loja, k, v, semFila) { return this._op(loja, 'readwrite', s => { s.put(v, k); }).then(r => { if (!semFila && this.aoMudar) this.aoMudar(loja, k); return r; }); },
+  apagar(loja, k, semFila) { return this._op(loja, 'readwrite', s => { s.delete(k); }).then(r => { if (!semFila && this.aoMudar) this.aoMudar(loja, k); return r; }); },
   todos(loja) { return this._op(loja, 'readonly', s => s.getAll()).then(r => (r && r.result) || r || []); },
   chaves(loja) { return this._op(loja, 'readonly', s => s.getAllKeys()).then(r => (r && r.result) || r || []); },
   limpar(loja) { return this._op(loja, 'readwrite', s => { s.clear(); }); },
@@ -517,8 +521,8 @@ const chaveRdo = (obraId, data) => obraId + '|' + data;
 const obraPor = id => App.obras.find(o => o.id === id);
 const rdosDa = obraId => Object.values(App.rdos).filter(r => r.obraId === obraId);
 
-function salvarConfig() { return Banco.gravar('config', 'geral', App.config); }
-function salvarObra(o) { return Banco.gravar('obras', o.id, o); }
+function salvarConfig() { App.config.atualizadoEm = new Date().toISOString(); return Banco.gravar('config', 'geral', App.config); }
+function salvarObra(o) { o.atualizadoEm = new Date().toISOString(); return Banco.gravar('obras', o.id, o); }
 
 /* Status de um dia para o calendário */
 function statusDia(obra, iso) {
@@ -582,6 +586,7 @@ function render() {
   else if (r.tela === 'obra') html = obraPor(r.id) ? telaObra(obraPor(r.id), r.aba) : telaInicio();
   else if (r.tela === 'rdo') html = obraPor(r.id) ? telaRdo(obraPor(r.id), r.data) : telaInicio();
   corpo.innerHTML = html;
+  App.redesenharDepois = false; Nuvem.mostrar();
   window.scrollTo(0, 0);
   if (App.aposRender) { const f = App.aposRender; App.aposRender = null; f(); }
 }
@@ -593,14 +598,13 @@ function telaInicio() {
     '<button class="ic" data-a="ir" data-h="#/config" aria-label="Configurações">' + ic('config') + '</button>');
   h += '<main>';
 
-  const dSemCopia = App.config.ultimoBackup ? difDias(App.config.ultimoBackup, hojeIso()) : null;
+  h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>';
   if (Banco.motor !== 'indexeddb')
     h += '<div class="aviso e">' + ic('alerta') + '<div><b>Este navegador não está guardando os dados.</b> ' +
       'Abra no Google Chrome ou Edge.</div></div>';
-  else if (ativas.length && (dSemCopia === null || dSemCopia >= 7))
-    h += '<div class="aviso a">' + ic('alerta') + '<div><b>' + (dSemCopia === null ? 'Nenhuma cópia de segurança ainda.' :
-      'Última cópia de segurança há ' + dSemCopia + ' dias.') + '</b> ' +
-      '<a href="#/config" style="color:inherit">Fazer agora</a></div></div>';
+  else if (!Nuvem.ativa())
+    h += '<div class="aviso a">' + ic('alerta') + '<div><b>Os diários estão só neste aparelho.</b> ' +
+      '<a href="#/config" style="color:inherit">Ligar a nuvem</a> para abrir no celular e no computador.</div></div>';
 
   if (!ativas.length) {
     h += '<div class="cartao vazio">' + ic('predio') + '<h3>Nenhuma obra ainda</h3>' +
@@ -719,7 +723,7 @@ function abaFotos(o) {
 const _urls = {};
 function urlFoto(id) {
   if (_urls[id]) return Promise.resolve(_urls[id]);
-  return Banco.ler('fotos', id).then(f => f && f.blob ? (_urls[id] = URL.createObjectURL(f.blob)) : '');
+  return obterFotoBlob(id).then(b => b ? (_urls[id] = URL.createObjectURL(b)) : '');
 }
 function carregarMiniaturas() {
   document.querySelectorAll('img[data-foto]').forEach(img => urlFoto(img.dataset.foto).then(u => { if (u) img.src = u; }));
@@ -853,9 +857,35 @@ function telaObraForm(id) {
 }
 
 /* ---------------- CONFIGURAÇÕES ---------------- */
+function cartaoNuvem() {
+  const n = Nuvem.cfg || {};
+  let h = '<div class="cartao larga"><div class="cartao-cab"><div class="ico">' + ic('subir') + '</div><h2>Nuvem da construtora' +
+    '<span class="resumo">Google Drive — abre no celular e no computador</span></h2></div><div class="cartao-corpo">';
+  if (Nuvem.ativa()) {
+    h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>' +
+      '<p style="font-size:14px;margin:0 0 4px"><b>Conectado como:</b> ' + esc(n.nome) + '</p>' +
+      '<p style="font-size:13px;color:var(--tinta2);margin:0 0 12px;word-break:break-all">' + esc(n.url.slice(0, 60)) + '…</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
+      '<button class="btn pri" data-a="nuvemSinc">' + ic('subir') + 'Sincronizar agora</button>' +
+      '<button class="btn sec" data-a="nuvemConvite">' + ic('copiar') + 'Convite p/ engenheiro</button></div>' +
+      '<p class="dica">O convite é um link: o engenheiro abre no celular ou no computador, digita o nome e pronto.</p>' +
+      '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px"><button class="btn fant" data-a="nuvemTudo">Baixar tudo de novo</button>' +
+      '<button class="btn fant" style="color:var(--erro)" data-a="nuvemSair">Desconectar este aparelho</button></div>';
+  } else {
+    h += '<p style="font-size:14px;color:var(--tinta2);margin:0 0 6px">Hoje os diários ficam só neste aparelho. Conecte à nuvem da construtora para ' +
+      'guardar tudo no Google Drive e abrir em qualquer celular ou computador. Sem internet, o app continua funcionando e envia quando a conexão voltar.</p>' +
+      '<label class="rot">Endereço do servidor</label><input class="campo" id="nvUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(n.url || '') + '">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="rot">Código da empresa</label><input class="campo" id="nvCod"></div>' +
+      '<div><label class="rot">Seu nome</label><input class="campo" id="nvNome" value="' + esc(App.config.responsavel || '') + '"></div></div>' +
+      '<button class="btn pri cheio" style="margin-top:12px" data-a="nuvemLigar">' + ic('ok') + 'Conectar</button>' +
+      '<p class="dica">Recebeu um link de convite? Basta abrir o link. Para criar o servidor (uma vez só, pela diretoria): ' +
+      '<a href="https://github.com/danilobandeira82/diario-de-obras/blob/main/servidor/COMO-INSTALAR.md" target="_blank" rel="noopener">passo a passo</a>.</p>';
+  }
+  return h + '</div></div>';
+}
 function telaConfig() {
   const c = App.config;
-  let h = topo('Configurações', '', '#/') + '<main><div class="grade2">';
+  let h = topo('Configurações', '', '#/') + '<main><div class="grade2">' + cartaoNuvem();
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('predio') + '</div><h2>Empresa</h2></div><div class="cartao-corpo">' +
     '<label class="rot">Nome da construtora (sai no PDF)</label><input class="campo" data-c="cfg" data-k="empresa" value="' + esc(c.empresa || '') + '">' +
     '<label class="rot">CNPJ</label><input class="campo" data-c="cfg" data-k="cnpj" value="' + esc(c.cnpj || '') + '">' +
@@ -866,8 +896,9 @@ function telaConfig() {
     '<label class="btn sec cheio">' + ic('subir') + (c.logo ? 'Trocar logo' : 'Enviar logo') + '<input type="file" accept="image/*" hidden data-c="logo"></label></div></div>';
 
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('escudo') + '</div><h2>Cópia de segurança</h2></div><div class="cartao-corpo">' +
-    '<p style="font-size:14px;color:var(--tinta2);margin:0 0 10px">Os dados ficam só neste aparelho. Salve uma cópia toda semana e guarde fora dele ' +
-    '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.</p>' +
+    '<p style="font-size:14px;color:var(--tinta2);margin:0 0 10px">' + (Nuvem.ativa() ? 'Com a nuvem ligada, tudo já fica no Google Drive. ' +
+      'A cópia é uma garantia extra (um arquivo com tudo).' : 'Os dados ficam só neste aparelho. Salve uma cópia toda semana e guarde fora dele ' +
+    '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.') + '</p>' +
     '<p style="font-size:13.5px;margin:0 0 12px"><b>Última cópia:</b> ' + (c.ultimoBackup ? br(c.ultimoBackup) : 'nunca') + '</p>' +
     '<button class="btn pri cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button>' +
     '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label>' +
@@ -955,6 +986,7 @@ function telaRdo(o, data) {
     h += '<div class="aviso o">' + ic('ok') + '<div><b>Diário fechado' + (r.concluidoEm ? ' em ' + br(r.concluidoEm.slice(0, 10)) : '') +
       '.</b> Você ainda pode corrigir; a alteração fica registrada.</div></div>';
 
+  h += '<div id="nuvemStatus" class="nuvem-status" hidden></div>';
   if (pz) h += '<div class="faixa-prazo"><b>RDO nº ' + Math.max(pz.dia, 0) + '</b><span>' + textoPrazo(pz) + '</span></div>';
 
   // atalho: copiar do último dia
@@ -1190,6 +1222,7 @@ const _tGrava = {};
 function alterado(secRedesenhar) {
   const r = App.rdoAtual;
   r.atualizadoEm = new Date().toISOString();
+  if (Nuvem.cfg && Nuvem.cfg.nome) r.atualizadoPor = Nuvem.cfg.nome;
   const k = chaveRdo(r.obraId, r.data);
   App.rdos[k] = JSON.parse(JSON.stringify(r));
   if (secRedesenhar) redesenhar(secRedesenhar);
@@ -1198,7 +1231,7 @@ function alterado(secRedesenhar) {
   clearTimeout(_tGrava[k]);
   _tGrava[k] = setTimeout(() => {
     delete _tGrava[k];
-    Banco.gravar('rdos', k, App.rdos[k]).then(() => { const s2 = $('#salvo'); if (s2) s2.textContent = 'Salvo ✓'; })
+    Banco.gravar('rdos', k, App.rdos[k]).then(() => { const s2 = $('#salvo'); if (s2) s2.textContent = Nuvem.curto(); })
       .catch(e => { toast('ERRO AO SALVAR: ' + e.message, 5000); });
   }, 400);
 }
@@ -1306,7 +1339,12 @@ const A = {
         Promise.all(ps).then(() => { toast('Obra excluída'); ir('#/'); });
       });
   },
-  abrirDoc: el => Banco.ler('docs', el.dataset.id).then(d => { if (!d) return toast('Arquivo não encontrado');
+  abrirDoc: el => Banco.ler('docs', el.dataset.id).then(d => {
+    if (d || !Nuvem.ativa()) return d;
+    const o = obraPor(App.rota.id), meta = (o.docs || []).find(x => x.id === el.dataset.id); if (!meta) return null;
+    toast('Baixando da nuvem…', 2000);
+    return Nuvem.baixarArquivo('docs', meta.id, o.id, meta).then(b => ({ nome: meta.nome, blob: b })).catch(() => null);
+  }).then(d => { if (!d) return toast('Arquivo não encontrado');
     const u = URL.createObjectURL(d.blob); const w = window.open(u, '_blank'); if (!w) baixarArquivo(d.nome, d.blob); }),
   apagarDoc: el => confirmar('Remover documento?', 'O arquivo sai deste aparelho.', 'Remover', true).then(ok => { if (!ok) return;
     const o = obraPor(App.rota.id); o.docs = o.docs.filter(d => d.id !== el.dataset.id);
@@ -1388,7 +1426,21 @@ const A = {
   pdfImprimir: () => { const o = obraPor(App.rota.id); gerarPdfArquivo(Object.assign(periodoEscolhido(o), { fotos: App.pdfFotos === false ? '0' : '1' }), 'abrir'); },
   excel: () => gerarExcel(obraPor(App.rota.id)),
   backup: () => salvarBackup(),
-  testar: () => testarAparelho()
+  testar: () => testarAparelho(),
+  nuvemLigar: el => { el.disabled = true; toast('Conectando…', 2000);
+    Nuvem.conectar($('#nvUrl').value, $('#nvCod').value, $('#nvNome').value)
+      .then(() => { toast('Conectado! Enviando os dados deste aparelho…', 3500); render(); })
+      .catch(e => { el.disabled = false; toast(e.message, 5000); }); },
+  nuvemSinc: () => { Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
+  nuvemTudo: () => { Nuvem.cfg.desde = 0; Nuvem.sincronizar().then(() => toast(Nuvem.texto(), 3000)); },
+  nuvemSair: () => confirmar('Desconectar este aparelho?', 'Os dados continuam no Drive e neste aparelho, mas param de sincronizar aqui.' +
+      (Nuvem.pendentes() ? ' ATENÇÃO: ' + Nuvem.pendentes() + ' alteração(ões) ainda não foram enviadas.' : ''), 'Desconectar', true)
+    .then(ok => { if (ok) Nuvem.desconectar().then(render); }),
+  nuvemConvite: () => { const u = Nuvem.convite();
+    const fim = () => toast('Convite copiado — mande por WhatsApp ou e-mail', 3500);
+    if (navigator.share) navigator.share({ title: 'Diário de Obras', text: 'Acesse o Diário de Obras da construtora:', url: u }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(u).then(fim, () => prompt('Copie o convite:', u));
+    else prompt('Copie o convite:', u); },
 };
 
 function escolherDaLista(titulo, itens, aoEscolher, livre) {
@@ -2176,8 +2228,8 @@ function gerarPdfArquivo(p, modo) {
     const as = r.assinaturas || {};
     if (as.responsavel && as.responsavel.img) tarefas.push(() => jpegDe(as.responsavel.img, 600, 0.9).then(im => imagens['ass_r_' + r.data] = im));
     if (as.fiscal && as.fiscal.img) tarefas.push(() => jpegDe(as.fiscal.img, 600, 0.9).then(im => imagens['ass_f_' + r.data] = im));
-    if (comFotos) (r.fotos || []).forEach(f => tarefas.push(() => Banco.ler('fotos', f.id).then(x => {
-      if (!x || !x.blob) return; const u = URL.createObjectURL(x.blob);
+    if (comFotos) (r.fotos || []).forEach(f => tarefas.push(() => obterFotoBlob(f.id).then(b => {
+      if (!b) return; const u = URL.createObjectURL(b);
       return jpegDe(u, 1100, 0.72).then(im => { imagens['foto_' + f.id] = im; URL.revokeObjectURL(u); });
     })));
   });
@@ -2219,6 +2271,236 @@ function pdfPronto() {
 }
 
 /* =====================================================================
+ * NUVEM — guarda tudo no Google Drive da construtora (servidor em servidor/Codigo.gs)
+ * O app continua gravando primeiro no aparelho (funciona sem sinal) e mantém
+ * uma fila do que falta enviar. Com internet: envia a fila e baixa o que
+ * mudou em outros aparelhos. Vale sempre a alteração mais recente.
+ * ===================================================================== */
+const LOJAS_REG = ['obras', 'rdos', 'config'], LOJAS_ARQ = ['fotos', 'docs'];
+
+const Nuvem = {
+  cfg: null,              // { url, codigo, nome, desde }
+  fila: {},               // 'loja|chave' -> { loja, chave, v }
+  rodando: false, estado: 'desligada', erro: '', ultimaOk: 0, baixando: 0,
+  _falhas: {},            // arquivos que ainda não estão no servidor (tenta de novo depois)
+
+  carregar() {
+    return Promise.all([Banco.ler('config', 'nuvem'), Banco.ler('config', 'fila')]).then(([c, f]) => {
+      this.cfg = c || null; this.fila = f || {};
+      Banco.aoMudar = (loja, k) => this.marcar(loja, k);
+      if (this.ativa()) this.estado = 'ok';
+    });
+  },
+  ativa() { return !!(this.cfg && this.cfg.url && this.cfg.codigo); },
+  pendentes() { return Object.keys(this.fila).length; },
+
+  /* ---------- fila ---------- */
+  marcar(loja, chave) {
+    if (!this.ativa()) return;
+    if (loja === 'config' && chave !== 'geral') return;
+    if (String(chave).indexOf('__') === 0) return;                       // testes internos
+    if (LOJAS_REG.indexOf(loja) < 0 && LOJAS_ARQ.indexOf(loja) < 0) return;
+    const k = loja + '|' + chave, ant = this.fila[k];
+    this.fila[k] = { loja, chave, v: (ant ? ant.v : 0) + 1 };
+    this._gravarFila(); this.agendar(4000); this.mostrar();
+  },
+  _gravarFila() { clearTimeout(this._tf); this._tf = setTimeout(() => Banco.gravar('config', 'fila', this.fila, true), 300); },
+  marcarTudo() {
+    return Promise.all(LOJAS_REG.concat(LOJAS_ARQ).map(l => Banco.chaves(l).then(ks => ks.forEach(k => {
+      if (l === 'config' && k !== 'geral') return;
+      if (String(k).indexOf('__') === 0) return;
+      const id = l + '|' + k; this.fila[id] = { loja: l, chave: k, v: 1 };
+    })))).then(() => this._gravarFila());
+  },
+  agendar(ms) { clearTimeout(this._ta); this._ta = setTimeout(() => this.sincronizar(), ms || 0); },
+
+  /* ---------- conversa com o servidor ---------- */
+  chamar(acao, extra) {
+    const corpo = JSON.stringify(Object.assign({ codigo: this.cfg.codigo, nome: this.cfg.nome || '', acao }, extra || {}));
+    const ctl = window.AbortController ? new AbortController() : null;
+    const tempo = setTimeout(() => ctl && ctl.abort(), 90000);
+    // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
+    return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
+      .then(r => r.text())
+      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); return j; })
+      .finally(() => clearTimeout(tempo));
+  },
+
+  sincronizar() {
+    if (!this.ativa() || this.rodando) return Promise.resolve();
+    if (!navigator.onLine) { this.estado = 'offline'; this.mostrar(); return Promise.resolve(); }
+    this.rodando = true; this.estado = 'enviando'; this.erro = ''; this.mostrar();
+    let mudou = false;
+    return this.enviar()
+      .then(() => this.receber()).then(m => { mudou = m; })
+      .then(() => this.baixarArquivos())
+      .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); })
+      .catch(e => { this.estado = navigator.onLine ? 'erro' : 'offline'; this.erro = e.message || String(e); })
+      .finally(() => {
+        this.rodando = false; this.mostrar();
+        if (mudou) this.redesenhar();
+        if (this.pendentes() && this.estado !== 'erro' && this.estado !== 'offline') this.agendar(3000);
+      });
+  },
+
+  /* envia a fila: registros em lotes, fotos e documentos um por um */
+  enviar() {
+    const itens = Object.keys(this.fila).map(k => Object.assign({ k }, this.fila[k]));
+    const regs = itens.filter(i => LOJAS_REG.indexOf(i.loja) >= 0), arqs = itens.filter(i => LOJAS_ARQ.indexOf(i.loja) >= 0);
+    const tirar = lista => { lista.forEach(i => { if (this.fila[i.k] && this.fila[i.k].v === i.v) delete this.fila[i.k]; }); this._gravarFila(); this.mostrar(); };
+    let p = Promise.resolve();
+    for (let n = 0; n < regs.length; n += 10) {
+      const lote = regs.slice(n, n + 10);
+      p = p.then(() => Promise.all(lote.map(i => Banco.ler(i.loja, i.chave).then(v => v === undefined || v === null
+        ? { loja: i.loja, chave: i.chave, apagado: true, atualizadoEm: new Date().toISOString() }
+        : { loja: i.loja, chave: i.chave, dados: v, atualizadoEm: v.atualizadoEm || new Date().toISOString() }))))
+        .then(dados => this.chamar('salvar', { itens: dados })).then(() => tirar(lote));
+    }
+    arqs.forEach(i => { p = p.then(() => this.enviarArquivo(i)).then(ok => { if (ok) tirar([i]); }); });
+    return p;
+  },
+  enviarArquivo(i) {
+    return Banco.ler(i.loja, i.chave).then(x => {
+      if (!x || !x.blob) return true;                    // apagado aqui: o arquivo fica guardado no Drive
+      let obraId, obraNome, extra;
+      if (i.loja === 'fotos') { obraId = x.obraId; extra = { data: x.data }; }
+      else { const o = App.obras.find(o => (o.docs || []).some(d => d.id === i.chave)); if (!o) return true; obraId = o.id; extra = { nomeArq: x.nome }; }
+      const o = obraPor(obraId); obraNome = o ? o.nome : '';
+      return blobParaUrl(x.blob).then(u => this.chamar(i.loja === 'fotos' ? 'foto_enviar' : 'doc_enviar', Object.assign({
+        id: i.chave, obraId, obraNome, mime: x.blob.type || x.tipo || '', base64: String(u).split(',')[1] || '' }, extra))).then(() => true);
+    });
+  },
+
+  /* baixa o que mudou em outros aparelhos */
+  receber() {
+    let desde = (this.cfg && this.cfg.desde) || 0, mudou = false;
+    const pagina = () => this.chamar('mudancas', { desde, limite: 60 }).then(j => {
+      return j.itens.reduce((p, it) => p.then(() => this.aplicar(it)).then(m => { if (m) mudou = true; }), Promise.resolve()).then(() => {
+        if (j.mais && j.cursor > desde) { desde = j.cursor; return pagina(); }
+        // volta 5 minutos: a busca do Drive às vezes demora a enxergar alterações recentes
+        this.cfg.desde = Math.max(desde, Math.min(j.itens.length ? j.cursor : desde, j.agora - 5 * 60000));
+        return Banco.gravar('config', 'nuvem', this.cfg, true);
+      });
+    });
+    return pagina().then(() => mudou);
+  },
+  aplicar(it) {
+    if (LOJAS_REG.indexOf(it.loja) < 0) return Promise.resolve(false);
+    if (it.loja === 'config' && it.chave !== 'geral') return Promise.resolve(false);
+    if (this.fila[it.loja + '|' + it.chave]) return Promise.resolve(false);   // tem alteração daqui esperando envio
+    return Banco.ler(it.loja, it.chave).then(local => {
+      const tl = (local && local.atualizadoEm) || '', tr = it.atualizadoEm || '';
+      if (it.apagado) {
+        if (!local || tl > tr) return false;
+        return Banco.apagar(it.loja, it.chave, true).then(() => { this.noApp(it.loja, it.chave, null); return true; });
+      }
+      if (local && tl >= tr) return false;
+      return Banco.gravar(it.loja, it.chave, it.dados, true).then(() => { this.noApp(it.loja, it.chave, it.dados); return true; });
+    });
+  },
+  noApp(loja, chave, v) {
+    if (loja === 'config') { if (v) App.config = v; }
+    else if (loja === 'obras') {
+      App.obras = App.obras.filter(o => o.id !== chave);
+      if (v) App.obras.push(v);
+    } else if (loja === 'rdos') { if (v) App.rdos[chave] = v; else delete App.rdos[chave]; }
+  },
+
+  /* fotos e documentos que existem em outro aparelho e faltam aqui (até 15 por vez) */
+  baixarArquivos() {
+    return Promise.all([Banco.chaves('fotos'), Banco.chaves('docs')]).then(([fs, ds]) => {
+      const tem = new Set(fs.concat(ds)), falta = [], agora = Date.now();
+      Object.values(App.rdos).forEach(r => (r.fotos || []).forEach(f => { if (!tem.has(f.id)) falta.push(['fotos', f.id, r.obraId, r.data]); }));
+      App.obras.forEach(o => (o.docs || []).forEach(d => { if (!tem.has(d.id)) falta.push(['docs', d.id, o.id, d]); }));
+      const fila = falta.filter(x => !(this._falhas[x[1]] > agora)).sort((a, b) => String(b[3]).localeCompare(String(a[3]))).slice(0, 15);
+      this.baixando = fila.length; this.mostrar();
+      return fila.reduce((p, x) => p.then(() => this.baixarArquivo(x[0], x[1], x[2], x[3]).catch(() => { this._falhas[x[1]] = Date.now() + 10 * 60000; })), Promise.resolve())
+        .then(() => { this.baixando = 0; if (fila.length) { carregarMiniaturas(); if (falta.length > fila.length) this.agendar(2000); } });
+    });
+  },
+  baixarArquivo(loja, id, obraId, extra) {
+    return this.chamar(loja === 'fotos' ? 'foto_baixar' : 'doc_baixar', { id, obraId }).then(j => {
+      const bin = atob(j.base64), u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      const blob = new Blob([u], { type: j.mime || '' });
+      const reg = loja === 'fotos' ? { id, obraId, data: extra, blob } : { id, nome: extra.nome, tipo: extra.tipo || j.mime, blob };
+      return Banco.gravar(loja, id, reg, true).then(() => blob);
+    });
+  },
+
+  /* ---------- aparência ---------- */
+  texto() {
+    if (!this.ativa()) return '';
+    const n = this.pendentes();
+    if (this.estado === 'offline') return 'Sem internet' + (n ? ' · ' + n + ' aguardando envio' : ' · salvo no aparelho');
+    if (this.estado === 'erro') return 'Não sincronizou: ' + this.erro;
+    if (this.rodando) return n ? 'Enviando… faltam ' + n : (this.baixando ? 'Baixando ' + this.baixando + ' arquivo(s)…' : 'Sincronizando…');
+    if (n) return n + ' aguardando envio';
+    return 'Tudo salvo na nuvem';
+  },
+  mostrar() {
+    const s = document.getElementById('salvo');
+    if (s && s.textContent && s.textContent !== 'Salvando…') s.textContent = this.curto();
+    const el = document.getElementById('nuvemStatus'); if (!el) return;
+    const t = this.texto(); el.textContent = t;
+    el.className = 'nuvem-status ' + (this.estado === 'erro' ? 'e' : this.estado === 'offline' || this.pendentes() ? 'a' : 'o');
+    el.hidden = !t;
+  },
+  /* versão curta para o canto do cabeçalho do dia */
+  curto() {
+    if (!this.ativa()) return 'Salvo ✓';
+    if (this.estado === 'offline') return 'Sem internet · salvo no aparelho';
+    if (this.estado === 'erro') return 'Salvo no aparelho · nuvem com erro';
+    if (this.rodando || this.pendentes()) return 'Enviando…';
+    return 'Salvo na nuvem ✓';
+  },
+  /* chegou coisa nova de outro aparelho: atualiza a tela se ninguém estiver digitando */
+  redesenhar() {
+    const foco = document.activeElement;
+    if (foco && /INPUT|TEXTAREA/.test(foco.tagName)) { App.redesenharDepois = true; return; }
+    if (document.getElementById('folha')) { App.redesenharDepois = true; return; }
+    const y = scrollY; render(); scrollTo(0, y);
+  },
+
+  /* ---------- ligar / desligar ---------- */
+  conectar(url, codigo, nome) {
+    url = String(url || '').trim(); codigo = String(codigo || '').trim(); nome = String(nome || '').trim();
+    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url) && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(url))
+      return Promise.reject(new Error('O endereço deve começar com https://script.google.com/'));
+    if (!codigo) return Promise.reject(new Error('Informe o código da empresa'));
+    if (!nome) return Promise.reject(new Error('Informe seu nome'));
+    const ant = this.cfg; this.cfg = { url, codigo, nome, desde: 0 };
+    return this.chamar('ping').then(j => Banco.gravar('config', 'nuvem', this.cfg, true).then(() => this.marcarTudo()).then(() => { this.estado = 'ok'; this.sincronizar(); return j; }))
+      .catch(e => { this.cfg = ant; throw e; });
+  },
+  desconectar() { this.cfg = null; this.fila = {}; this.estado = 'desligada'; return Promise.all([Banco.apagar('config', 'nuvem', true), Banco.apagar('config', 'fila', true)]); },
+  convite() {
+    const dados = btoa(unescape(encodeURIComponent(JSON.stringify({ u: this.cfg.url, c: this.cfg.codigo }))));
+    return location.origin + location.pathname + '#convite=' + dados;
+  },
+  lerConvite(hash) {
+    try { const j = JSON.parse(decodeURIComponent(escape(atob(hash.replace(/^#convite=/, ''))))); return j && j.u && j.c ? j : null; } catch (e) { return null; }
+  }
+};
+
+/* foto: do aparelho; se faltar, busca na nuvem */
+function obterFotoBlob(id) {
+  return Banco.ler('fotos', id).then(f => {
+    if (f && f.blob) return f.blob;
+    if (!Nuvem.ativa() || !navigator.onLine) return null;
+    let dono = null;
+    Object.values(App.rdos).some(r => (r.fotos || []).some(x => x.id === id) && (dono = r));
+    if (!dono) return null;
+    return Nuvem.baixarArquivo('fotos', id, dono.obraId, dono.data).catch(() => null);
+  });
+}
+
+window.addEventListener('online', () => Nuvem.agendar(1000));
+window.addEventListener('offline', () => { Nuvem.estado = 'offline'; Nuvem.mostrar(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Nuvem.agendar(500); });
+setInterval(() => { if (!document.hidden) Nuvem.sincronizar(); }, 60000);
+
+/* =====================================================================
  * PARTIDA
  * ===================================================================== */
 function carregarTudo() {
@@ -2227,7 +2509,29 @@ function carregarTudo() {
     (rdos || []).forEach(r => App.rdos[chaveRdo(r.obraId, r.data)] = r);
   });
 }
-Banco.abrir().then(carregarTudo).then(render).catch(e => {
+
+/* link de convite: #convite=… traz o endereço do servidor e o código da empresa */
+function receberConvite() {
+  if (location.hash.indexOf('#convite=') !== 0) return;
+  const cv = Nuvem.lerConvite(location.hash);
+  history.replaceState(null, '', location.pathname + '#/');
+  if (!cv) return toast('Link de convite inválido', 4000);
+  abrirFolha('<h3>Bem-vindo ao Diário de Obras</h3><p style="font-size:14.5px;color:var(--tinta2);margin:0 0 10px">Digite seu nome. ' +
+    'Os diários vão ficar salvos na nuvem da construtora e abrem em qualquer aparelho.</p>' +
+    '<input class="campo" id="cvNome" placeholder="Seu nome (ex.: Eng. João Silva)" style="margin-bottom:12px">' +
+    '<button class="btn pri cheio" id="cvOk">' + ic('ok') + 'Entrar</button>', f => {
+      f.querySelector('#cvOk').onclick = () => {
+        const nome = f.querySelector('#cvNome').value.trim(); if (!nome) return toast('Digite seu nome');
+        f.querySelector('#cvOk').disabled = true; toast('Conectando…', 2000);
+        Nuvem.conectar(cv.u, cv.c, nome).then(() => { fecharFolha(); toast('Pronto! Baixando os diários da construtora…', 4000); render(); })
+          .catch(e => { f.querySelector('#cvOk').disabled = false; toast(e.message, 5000); });
+      };
+    });
+}
+
+Banco.abrir().then(carregarTudo).then(() => Nuvem.carregar()).then(() => {
+  render(); receberConvite(); Nuvem.sincronizar();
+}).catch(e => {
   document.getElementById('app').innerHTML = '<main><div class="aviso e">Erro ao iniciar: ' + esc(e.message) + '</div></main>';
 });
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});

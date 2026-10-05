@@ -310,8 +310,8 @@ function gerarPdfArquivo(p, modo) {
     const as = r.assinaturas || {};
     if (as.responsavel && as.responsavel.img) tarefas.push(() => jpegDe(as.responsavel.img, 600, 0.9).then(im => imagens['ass_r_' + r.data] = im));
     if (as.fiscal && as.fiscal.img) tarefas.push(() => jpegDe(as.fiscal.img, 600, 0.9).then(im => imagens['ass_f_' + r.data] = im));
-    if (comFotos) (r.fotos || []).forEach(f => tarefas.push(() => Banco.ler('fotos', f.id).then(x => {
-      if (!x || !x.blob) return; const u = URL.createObjectURL(x.blob);
+    if (comFotos) (r.fotos || []).forEach(f => tarefas.push(() => obterFotoBlob(f.id).then(b => {
+      if (!b) return; const u = URL.createObjectURL(b);
       return jpegDe(u, 1100, 0.72).then(im => { imagens['foto_' + f.id] = im; URL.revokeObjectURL(u); });
     })));
   });

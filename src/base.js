@@ -105,8 +105,9 @@ const Banco = {
     });
   },
   ler(loja, k) { return this._op(loja, 'readonly', s => s.get(k)).then(r => r && r.result !== undefined ? r.result : r); },
-  gravar(loja, k, v) { return this._op(loja, 'readwrite', s => { s.put(v, k); }); },
-  apagar(loja, k) { return this._op(loja, 'readwrite', s => { s.delete(k); }); },
+  /* semFila = true quando o dado veio da nuvem (não precisa ser enviado de volta) */
+  gravar(loja, k, v, semFila) { return this._op(loja, 'readwrite', s => { s.put(v, k); }).then(r => { if (!semFila && this.aoMudar) this.aoMudar(loja, k); return r; }); },
+  apagar(loja, k, semFila) { return this._op(loja, 'readwrite', s => { s.delete(k); }).then(r => { if (!semFila && this.aoMudar) this.aoMudar(loja, k); return r; }); },
   todos(loja) { return this._op(loja, 'readonly', s => s.getAll()).then(r => (r && r.result) || r || []); },
   chaves(loja) { return this._op(loja, 'readonly', s => s.getAllKeys()).then(r => (r && r.result) || r || []); },
   limpar(loja) { return this._op(loja, 'readwrite', s => { s.clear(); }); },

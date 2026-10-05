@@ -5,7 +5,7 @@ raiz = pathlib.Path(__file__).parent
 src, dist = raiz / 'src', raiz / 'docs'   # o GitHub Pages publica a pasta docs/
 dist.mkdir(exist_ok=True)
 ler = lambda n: (src / n).read_text(encoding='utf-8')
-js = '\n'.join(ler(n) for n in ['base.js', 'dados.js', 'app.js', 'rdo.js', 'acoes.js', 'extras.js', 'relatorios.js', 'pdf.js', 'inicio.js'])
+js = '\n'.join(ler(n) for n in ['base.js', 'dados.js', 'app.js', 'rdo.js', 'acoes.js', 'extras.js', 'relatorios.js', 'pdf.js', 'nuvem.js', 'inicio.js'])
 html = f"""<!doctype html>
 <html lang="pt-BR">
 <head>

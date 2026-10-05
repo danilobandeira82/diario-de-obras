@@ -26,7 +26,7 @@ svg{flex:none}
 .topo .ic{background:rgba(255,255,255,.12);border:0;color:#fff;width:40px;height:40px;
   border-radius:11px;display:grid;place-items:center;flex:none}
 .topo .ic svg{width:21px;height:21px}
-.salvo{font-size:12px;color:#b8c6d6;white-space:nowrap}
+.salvo{font-size:12px;color:#b8c6d6;max-width:120px;text-align:right;line-height:1.25}
 
 /* abas da obra */
 .abas{position:sticky;top:56px;z-index:25;background:var(--aco);display:flex;gap:2px;
@@ -92,6 +92,9 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .item.escolha .bola{width:20px;height:20px;border-radius:50%;border:2px solid var(--linha);flex:none}
 .item.escolha.on{border-color:var(--aco);box-shadow:0 0 0 1px var(--aco)}
 .item.escolha.on .bola{border:6px solid var(--aco)}
+.nuvem-status{font-size:13px;font-weight:600;padding:7px 12px;border-radius:10px;margin-bottom:10px}
+.nuvem-status.o{background:var(--ok-s);color:var(--ok)} .nuvem-status.a{background:var(--alerta-s);color:var(--alerta)} .nuvem-status.e{background:var(--erro-s);color:var(--erro)}
+.nuvem-status::before{content:'☁ '}
 .copiar-bloco{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 12px;padding:9px 12px;border:1.5px dashed var(--acao);border-radius:11px;
   background:var(--acao-suave);color:var(--acao2);font-size:14px;font-weight:600;text-align:left}
 .copiar-bloco svg{width:18px;height:18px;flex:none}

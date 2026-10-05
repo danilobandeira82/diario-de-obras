@@ -20,11 +20,10 @@ Relatório diário de obra (RDO) que funciona **sem internet**. Os dados ficam n
 
 ## Onde ficam os dados
 
-No banco interno do navegador (IndexedDB) do aparelho. Isso significa:
-
-- funciona offline e não tem mensalidade;
-- **cada aparelho é um diário separado** — combine um aparelho por obra;
-- limpar os dados do navegador apaga o diário — **salve a cópia de segurança toda semana** (Configurações → Salvar cópia).
+- **Com a nuvem ligada** (recomendado): tudo vai para o Google Drive da construtora e abre em qualquer celular ou computador.
+  Sem internet o app continua funcionando, guarda no aparelho e envia quando a conexão voltar.
+  Como ligar: [`servidor/COMO-INSTALAR.md`](servidor/COMO-INSTALAR.md).
+- **Sem a nuvem**: ficam só no aparelho (IndexedDB). Salve a cópia de segurança toda semana.
 
 ## Publicar no GitHub Pages
 
@@ -58,4 +57,6 @@ python3 montar.py
 | `src/acoes.js` | tratamento de cliques e digitação |
 | `src/extras.js` | clima automático, assinatura, cópia de segurança, obra de exemplo |
 | `src/relatorios.js` | tela de relatórios e Excel |
+| `src/nuvem.js` | sincronização com o Google Drive (fila, envio, recebimento, fotos) |
+| `servidor/Codigo.gs` | servidor gratuito no Google Apps Script |
 | `src/pdf.js` | PDF A4 gerado no próprio app (um dia por folha, fotos 6 por folha) |
