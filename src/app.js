@@ -30,6 +30,14 @@ function prazoDe(obra, iso) {
   const dia = difDias(obra.inicio, iso) + 1, total = +obra.prazoDias || 0;
   return { dia, total, restam: total ? total - dia : null };
 }
+/* "Dia 10 de 365 · faltam 355" — conta dias corridos (sábado e domingo entram) */
+function textoPrazo(pz) {
+  if (!pz) return '';
+  if (pz.dia < 1) return 'antes do início da obra';
+  if (!pz.total) return 'Dia ' + pz.dia;
+  if (pz.restam < 0) return 'Dia ' + pz.dia + ' de ' + pz.total + ' · prazo vencido há ' + (-pz.restam) + ' dia' + (pz.restam === -1 ? '' : 's');
+  return 'Dia ' + pz.dia + ' de ' + pz.total + ' · falta' + (pz.restam === 1 ? ' 1 dia' : 'm ' + pz.restam + ' dias');
+}
 const docsFaltando = obra => DOCS_EXIGIDOS.filter(t => !(obra.docs || []).some(d => d.tipo === t));
 
 /* ---------------- navegação ---------------- */
@@ -88,8 +96,8 @@ function telaInicio() {
     h += '<div class="cartao vazio">' + ic('predio') + '<h3>Nenhuma obra ainda</h3>' +
       '<p>Cadastre a primeira obra para começar o diário.</p>' +
       '<div style="display:flex;flex-direction:column;gap:9px;max-width:320px;margin:18px auto 0">' +
-      '<button class="btn pri" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Cadastrar obra</button>' +
-      '<button class="btn sec" data-a="exemplo">Ver com uma obra de exemplo</button></div></div>';
+      '<button class="btn pri" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Cadastrar obra e começar</button>' +
+      '<button class="btn sec" data-a="exemplo">Ver uma obra de exemplo já preenchida</button></div></div>';
   }
 
   ativas.forEach(o => {
@@ -306,8 +314,12 @@ function abaCadastro(o) {
 }
 
 /* ---------------- FORMULÁRIO DA OBRA ---------------- */
+function textoTermino(ini, prazo) {
+  if (!ini || !(+prazo > 0)) return 'Informe início e prazo para ver a data de término.';
+  return 'Término previsto: ' + br(somaDias(ini, +prazo - 1)) + ' (contando sábados, domingos e feriados).';
+}
 function telaObraForm(id) {
-  const o = id ? obraPor(id) : { inicio: hojeIso(), turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30', tipo: 'Edificação nova' };
+  const o = id ? obraPor(id) : { inicio: hojeIso(), engenheiro: App.config.responsavel || '', crea: App.config.crea || '', turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30', tipo: 'Edificação nova' };
   const c = (k, rot, tipo, ph) => '<label class="rot">' + rot + '</label><input class="campo" name="' + k + '" type="' + (tipo || 'text') +
     '" value="' + esc(o[k] || '') + '" placeholder="' + esc(ph || '') + '">';
   let h = topo(id ? 'Editar obra' : 'Nova obra', '', id ? '#/obra/' + id + '/cadastro' : '#/');
@@ -320,6 +332,8 @@ function telaObraForm(id) {
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('contrato', 'Nº do contrato') + '</div><div>' + c('art', 'Nº ART/RRT') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('inicio', 'Início da obra *', 'date') + '</div><div>' +
       c('prazoDias', 'Prazo (dias corridos)', 'number', '365') + '</div></div>' +
+    '<div id="terminoObra" class="dica" style="margin-top:6px">' + textoTermino(o.inicio, o.prazoDias) + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('engenheiro', 'Engenheiro responsável') + '</div><div>' + c('crea', 'CREA/CAU') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('fiscalNome', 'Fiscal do contrato') + '</div><div>' + c('fiscalCargo', 'Cargo / órgão') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('turnoManha', 'Turno manhã') + '</div><div>' + c('turnoTarde', 'Turno tarde') + '</div></div>' +
     '<input type="hidden" name="tipo" value="' + esc(o.tipo || 'Edificação nova') + '">' +
@@ -346,7 +360,11 @@ function telaConfig() {
     '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.</p>' +
     '<p style="font-size:13.5px;margin:0 0 12px"><b>Última cópia:</b> ' + (c.ultimoBackup ? br(c.ultimoBackup) : 'nunca') + '</p>' +
     '<button class="btn pri cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button>' +
-    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label></div></div>';
+    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label>' +
+    '<label class="rot" style="margin-top:16px">Para o escritório / diretoria</label>' +
+    '<p style="font-size:13.5px;color:var(--tinta2);margin:0 0 8px">Recebeu a cópia de segurança de um engenheiro? Junte aqui para ver as obras dele neste aparelho. ' +
+    'Não apaga nada do que já está aqui; se a mesma obra vier de novo, os diários são atualizados.</p>' +
+    '<label class="btn pri cheio">' + ic('subir') + 'Juntar diários recebidos<input type="file" accept=".json,application/json" multiple hidden data-c="juntar"></label></div></div>';
 
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('config') + '</div><h2>Este aparelho</h2></div><div class="cartao-corpo" id="diag">' +
     '<p style="font-size:14px;margin:0 0 6px"><b>Guardando em:</b> ' + (Banco.motor === 'indexeddb' ? 'banco do navegador (IndexedDB)' : '<span style="color:var(--erro)">somente memória — não salva</span>') + '</p>' +

@@ -107,6 +107,24 @@ function restaurarBackup(arq) {
   }).catch(e => toast(e.message || 'Arquivo inválido', 5000));
 }
 
+/* Junta cópias de vários engenheiros num aparelho só (diretoria). Não apaga nada. */
+function juntarBackups(arqs) {
+  let obras = 0, dias = 0, fotos = 0;
+  toast('Juntando…', 3000);
+  arqs.reduce((pr, arq) => pr.then(() => lerComo(arq, 'url').then(u => fetch(u)).then(r => r.json()).then(p => {
+    if (!p || p.app !== 'diario-de-obras') throw new Error(arq.name + ' não é uma cópia do Diário de Obras.');
+    const t = [];
+    p.obras.forEach(o => { t.push(Banco.gravar('obras', o.id, o)); obras++; });
+    p.rdos.forEach(r => { t.push(Banco.gravar('rdos', chaveRdo(r.obraId, r.data), r)); dias++; });
+    return Promise.all(t)
+      .then(() => p.fotos.reduce((q, f) => q.then(() => urlParaBlob(f.url).then(b => { fotos++; return Banco.gravar('fotos', f.id, { id: f.id, obraId: f.obraId, data: f.data, blob: b }); })), Promise.resolve()))
+      .then(() => (p.docs || []).reduce((q, d) => q.then(() => urlParaBlob(d.url).then(b => Banco.gravar('docs', d.id, { id: d.id, nome: d.nome, tipo: d.tipo, blob: b }))), Promise.resolve()));
+  })), Promise.resolve())
+    .then(() => carregarTudo())
+    .then(() => { toast('Juntado: ' + obras + ' obra(s), ' + dias + ' diário(s), ' + fotos + ' foto(s)', 4000); ir('#/'); })
+    .catch(e => { toast(e.message || 'Arquivo inválido', 5000); carregarTudo().then(render); });
+}
+
 function testarAparelho() {
   const linhas = [], tam = 3 * 1048576;
   const blob = new Blob([new Uint8Array(tam)]);

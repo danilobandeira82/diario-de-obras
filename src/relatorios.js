@@ -2,22 +2,32 @@
  * RELATÓRIOS — PDF em folha A4 e planilha Excel (.xlsx)
  * ===================================================================== */
 function abaRelatorios(o) {
-  const hoje = hojeIso(), d = dataDe(hoje);
-  const iniMes = isoDe(new Date(d.getFullYear(), d.getMonth(), 1)), fimMes = isoDe(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-  const iniAnt = isoDe(new Date(d.getFullYear(), d.getMonth() - 1, 1)), fimAnt = isoDe(new Date(d.getFullYear(), d.getMonth(), 0));
-  const nMes = MESES[d.getMonth()], nAnt = MESES[(d.getMonth() + 11) % 12];
+  const hoje = hojeIso(), d = dataDe(hoje), A_ = d.getFullYear(), M = d.getMonth();
+  const seg = somaDias(hoje, -((d.getDay() + 6) % 7));           // segunda-feira desta semana
+  const per = [
+    [seg, somaDias(seg, 6), 'Esta semana'],
+    [somaDias(seg, -7), somaDias(seg, -1), 'Semana passada'],
+    [isoDe(new Date(A_, M, 1)), isoDe(new Date(A_, M + 1, 0)), cap(MESES[M]) + ' (mês atual)'],
+    [isoDe(new Date(A_, M - 1, 1)), isoDe(new Date(A_, M, 0)), cap(MESES[(M + 11) % 12]) + ' (mês anterior)'],
+    [A_ + '-01-01', A_ + '-12-31', 'Ano de ' + A_],
+    [o.inicio, hoje > o.inicio ? hoje : o.inicio, 'Obra inteira']
+  ];
+  const fotos = App.pdfFotos !== false;
   const bt = (ini, fim, rot) => '<button class="item" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left" data-a="pdf" data-ini="' + ini +
-    '" data-fim="' + fim + '" data-rotulo="' + esc(rot) + '" data-fotos="1"><span style="flex:1"><b>' + esc(rot) + '</b><span style="display:block;font-size:12.5px;color:var(--tinta2)">' +
+    '" data-fim="' + fim + '" data-rotulo="' + esc(rot) + '"><span style="flex:1"><b>' + esc(rot) + '</b><span style="display:block;font-size:12.5px;color:var(--tinta2)">' +
     br(ini) + ' a ' + br(fim) + ' · ' + rdosDa(o.id).filter(r => r.data >= ini && r.data <= fim).length + ' diário(s)</span></span>' + ic('seta') + '</button>';
   return '<div class="grade2">' +
-    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pdf') + '</div><h2>Diário em PDF<span class="resumo">Uma folha A4 por dia, fotos na folha seguinte</span></h2></div>' +
-    '<div class="cartao-corpo">' + bt(iniMes, fimMes, cap(nMes) + ' (mês atual)') + bt(iniAnt, fimAnt, cap(nAnt) + ' (mês anterior)') +
-    bt(o.inicio, hoje, 'Obra inteira') +
-    '<label class="rot">Outro período</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="date" class="campo" id="pIni" value="' + iniMes + '">' +
+    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pdf') + '</div><h2>Imprimir / PDF<span class="resumo">Cada dia numa folha A4</span></h2></div>' +
+    '<div class="cartao-corpo"><div class="seg" style="margin-bottom:6px">' +
+      '<button class="' + (fotos ? 'on' : '') + '" data-a="pdfFotos" data-v="1">' + ic('camera') + 'Com fotos</button>' +
+      '<button class="' + (fotos ? '' : 'on') + '" data-a="pdfFotos" data-v="0">' + ic('pdf') + 'Sem fotos</button></div>' +
+    '<p class="dica" style="margin:0 0 10px">' + (fotos ? 'Depois de cada dia vêm as fotos dele, 6 por folha, todas do mesmo tamanho.'
+      : 'Só a folha do dia, com tudo numa página.') + '</p>' +
+    per.map(p => bt(p[0], p[1], p[2])).join('') +
+    '<label class="rot">Outro período</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="date" class="campo" id="pIni" value="' + per[2][0] + '">' +
     '<input type="date" class="campo" id="pFim" value="' + hoje + '"></div>' +
-    '<label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14.5px"><input type="checkbox" id="pFotos" checked style="width:20px;height:20px"> Incluir as fotos</label>' +
-    '<button class="btn sec cheio" data-a="pdfPeriodo">' + ic('pdf') + 'Gerar deste período</button>' +
-    '<p class="dica">' + ic('alerta') + 'Na janela que abrir, escolha "Salvar como PDF".</p></div></div>' +
+    '<button class="btn sec cheio" style="margin-top:10px" data-a="pdfPeriodo">' + ic('pdf') + 'Imprimir este período</button>' +
+    '<p class="dica">' + ic('alerta') + 'Na janela que abrir, escolha a impressora ou "Salvar como PDF".</p></div></div>' +
     '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('planilha') + '</div><h2>Planilha Excel<span class="resumo">Todos os dias, um por linha</span></h2></div>' +
     '<div class="cartao-corpo"><p style="font-size:14px;color:var(--tinta2);margin:0 0 12px">Abas: Diários, Serviços, Mão de obra, Ocorrências e Fotos. ' +
     'Bom para o arquivo de encerramento e para medir produtividade.</p>' +
@@ -29,7 +39,9 @@ function abaRelatorios(o) {
 
 /* ---------------- PDF (impressão do navegador) ---------------- */
 const CSS_IMP = `
-#impressao{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:8.6pt;line-height:1.28}
+#impressao{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9.5pt;line-height:1.3}
+#impressao.medir{display:block !important;position:absolute;left:-10000px;top:0;width:188mm}
+#impressao.medir .pg{min-height:0}
 #impressao .pg{page-break-after:always;break-after:page;position:relative;min-height:270mm;display:flex;flex-direction:column}
 #impressao .pg:last-child{page-break-after:auto;break-after:auto}
 #impressao .cab{display:flex;align-items:center;gap:4mm;border-bottom:2px solid #1d3550;padding-bottom:2.5mm;margin-bottom:3mm}
@@ -39,26 +51,27 @@ const CSS_IMP = `
 #impressao .cab .t span{font-size:8pt;color:#555}
 #impressao .cab .d{text-align:right;border:1.5px solid #1d3550;border-radius:2mm;padding:1.5mm 3mm}
 #impressao .cab .d b{display:block;font-size:11pt}
+#impressao .cab .d em{display:block;font-style:normal;font-weight:700;font-size:8pt;color:#1d3550}
 #impressao .cab .d span{font-size:7.5pt;color:#555}
 #impressao .g{display:grid;border-top:.3mm solid #b9c2cc;border-left:.3mm solid #b9c2cc;margin-bottom:2.2mm}
 #impressao .g>div{border-right:.3mm solid #b9c2cc;border-bottom:.3mm solid #b9c2cc;padding:1mm 1.6mm;min-width:0}
-#impressao .g i{display:block;font-style:normal;font-size:6pt;text-transform:uppercase;color:#5b6773;font-weight:700;letter-spacing:.2px}
-#impressao h4{margin:3mm 0 1.2mm;font-size:8pt;text-transform:uppercase;color:#1d3550;letter-spacing:.4px;border-bottom:.3mm solid #b9c2cc;padding-bottom:.6mm}
+#impressao .g i{display:block;font-style:normal;font-size:.7em;text-transform:uppercase;color:#5b6773;font-weight:700;letter-spacing:.2px}
+#impressao h4{margin:3mm 0 1.2mm;font-size:.88em;text-transform:uppercase;color:#1d3550;letter-spacing:.4px;border-bottom:.3mm solid #b9c2cc;padding-bottom:.6mm}
 #impressao table{border-collapse:collapse;width:100%;margin-bottom:1.5mm}
 #impressao th,#impressao td{border:.3mm solid #b9c2cc;padding:.9mm 1.4mm;text-align:left;vertical-align:top}
-#impressao th{background:#eef2f7;font-size:6.6pt;text-transform:uppercase;letter-spacing:.2px}
+#impressao th{background:#eef2f7;font-size:.74em;text-transform:uppercase;letter-spacing:.2px}
 #impressao .tot{font-weight:700;margin:.6mm 0 1.4mm}
 #impressao .txt{white-space:pre-wrap}
 #impressao .ass{margin-top:auto;padding-top:6mm;display:flex;gap:10mm;break-inside:avoid;page-break-inside:avoid}
-#impressao .ass>div{flex:1;text-align:center;font-size:7.6pt}
+#impressao .ass>div{flex:1;text-align:center;font-size:.85em}
 #impressao .ass img{height:15mm;max-width:100%;object-fit:contain;display:block;margin:0 auto}
 #impressao .ass .ln{border-top:.3mm solid #333;margin-top:1mm;padding-top:1mm}
 #impressao .ass .vz{height:15mm}
-#impressao .rod{margin-top:2mm;font-size:6.5pt;color:#888;text-align:center}
-#impressao .fotos{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
-#impressao .fotos figure{margin:0}
-#impressao .fotos img{width:100%;height:74mm;object-fit:contain;background:#f1f3f5;border:.3mm solid #b9c2cc;display:block}
-#impressao .fotos figcaption{font-size:7.5pt;color:#444;margin-top:1mm;font-style:italic}
+#impressao .rod{margin-top:2mm;font-size:.72em;color:#888;text-align:center}
+#impressao .fotos{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:80mm;gap:3mm 4mm}
+#impressao .fotos figure{margin:0;display:flex;flex-direction:column;min-height:0}
+#impressao .fotos img{width:100%;height:73mm;flex:none;object-fit:contain;background:#f1f3f5;border:.3mm solid #b9c2cc;display:block}
+#impressao .fotos figcaption{font-size:7.5pt;color:#444;margin-top:1mm;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #impressao .capa h1{font-size:22pt;text-align:center;margin:38mm 0 2mm;color:#1d3550}
 #impressao .capa .sub{text-align:center;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:12mm}
 `;
@@ -74,7 +87,7 @@ function gerarPdf(p) {
     const urls = Object.fromEntries(pares);
     let h = '<style>' + CSS_IMP + '</style>' + capaPdf(o, rs, p.rotulo);
     rs.forEach((r, i) => {
-      h += folhaDia(o, r, i + 1, rs.length);
+      h += folhaDia(o, r, i + 1, rs.length, comFotos);
       if (comFotos && r.fotos && r.fotos.length) {
         for (let k = 0; k < r.fotos.length; k += 6) h += folhaFotos(o, r, r.fotos.slice(k, k + 6), k, urls);
       }
@@ -83,17 +96,30 @@ function gerarPdf(p) {
     el.innerHTML = h;
     const imgs = Array.from(el.querySelectorAll('img'));
     Promise.all(imgs.map(im => im.complete ? 1 : new Promise(res => { im.onload = im.onerror = res; }))).then(() => {
+      encaixarFolhas(el);
       document.title = 'Diario_' + o.nome.replace(/[^\wÀ-ÿ]+/g, '_') + '_' + p.ini + '_a_' + p.fim;
       setTimeout(() => { window.print(); document.title = 'Diário de Obras'; }, 150);
     });
   });
 }
 
+/* Cada dia cabe numa folha: começa com letra 9,5 e diminui só o necessário (mínimo 6,5). */
+function encaixarFolhas(el) {
+  el.classList.add('medir');
+  const regua = document.createElement('div'); regua.style.height = '272mm'; el.appendChild(regua);
+  const limite = regua.getBoundingClientRect().height; regua.remove();
+  el.querySelectorAll('.pg.folha-dia').forEach(pg => {
+    let fs = 9.5; pg.style.fontSize = fs + 'pt';
+    while (pg.scrollHeight > limite && fs > 6.5) { fs -= 0.25; pg.style.fontSize = fs + 'pt'; }
+  });
+  el.classList.remove('medir');
+}
+
 function cabPdf(o, r) {
   const c = App.config, pz = prazoDe(o, r.data);
   return '<div class="cab">' + (c.logo ? '<img src="' + c.logo + '" alt="">' : '') +
     '<div class="t"><b>RELATÓRIO DIÁRIO DE OBRA</b><span>' + esc(c.empresa || '') + (c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : '') + '</span></div>' +
-    '<div class="d"><b>' + br(r.data) + '</b><span>' + SEMANA[dataDe(r.data).getDay()] + (pz ? ' · dia ' + pz.dia : '') + '</span></div></div>';
+    '<div class="d">' + (pz && pz.dia > 0 ? '<em>RDO nº ' + pz.dia + '</em>' : '') + '<b>' + br(r.data) + '</b><span>' + SEMANA[dataDe(r.data).getDay()] + '</span></div></div>';
 }
 
 function capaPdf(o, rs, rotulo) {
@@ -115,12 +141,12 @@ function capaPdf(o, rs, rotulo) {
        ['Fotos', rs.reduce((n, r) => n + (r.fotos || []).length, 0)], ['Emitido em', br(hojeIso())]], 3) + '</div>';
 }
 
-function folhaDia(o, r, n, total) {
+function folhaDia(o, r, n, total, comFotos) {
   const pz = prazoDe(o, r.data), cl = r.clima;
   const g = (lin, col) => '<div class="g" style="grid-template-columns:repeat(' + col + ',1fr)">' + lin.map(x => '<div><i>' + x[0] + '</i>' + esc(x[1]) + '</div>').join('') + '</div>';
-  let h = '<div class="pg">' + cabPdf(o, r) +
+  let h = '<div class="pg folha-dia">' + cabPdf(o, r) +
     g([['Obra', o.nome], ['Contratante', o.cliente || '—'], ['Contrato / ART', (o.contrato || '—') + ' / ' + (o.art || '—')],
-       ['Prazo', pz && pz.total ? 'dia ' + pz.dia + ' de ' + pz.total + ' · restam ' + pz.restam : (pz ? 'dia ' + pz.dia : '—')],
+       ['Prazo', textoPrazo(pz) || '—'],
        ['Situação', r.status === 'concluido' ? 'Fechado' : 'Rascunho'], ['Turnos', (o.turnoManha || '') + ' / ' + (o.turnoTarde || '')]], 3);
 
   if (cl.houve === false) {
@@ -153,11 +179,12 @@ function folhaDia(o, r, n, total) {
       r.visitas.map(v => '<tr><td>' + esc(v.nome) + '</td><td>' + esc(v.empresa) + '</td><td>' + esc(v.motivo) + '</td></tr>').join('') + '</table>';
   }
   if ((r.observacoes || '').trim()) h += '<h4>Observações</h4><div class="txt">' + esc(r.observacoes) + '</div>';
-  if (r.fotos && r.fotos.length) h += '<div style="margin-top:2mm;color:#555">Registro fotográfico: ' + r.fotos.length + ' foto(s) na folha seguinte.</div>';
+  if (r.fotos && r.fotos.length) h += '<div style="margin-top:2mm;color:#555">Registro fotográfico: ' + r.fotos.length + ' foto(s)' +
+    (comFotos ? ' na folha seguinte.' : ' guardada(s) no diário (impressão sem fotos).') + '</div>';
 
   const as = r.assinaturas, bloco = (a, papel) => '<div>' + (a && a.img ? '<img src="' + a.img + '" alt="">' : '<div class="vz"></div>') +
     '<div class="ln">' + esc((a && a.nome) || '') + '<br><span style="color:#666">' + papel + '</span></div></div>';
-  h += '<div class="ass">' + bloco(as.responsavel, 'Responsável técnico' + (App.config.crea ? ' — ' + App.config.crea : '')) +
+  h += '<div class="ass">' + bloco(as.responsavel, 'Responsável técnico' + ((o.crea || App.config.crea) ? ' — ' + (o.crea || App.config.crea) : '')) +
     bloco(as.fiscal, 'Fiscalização' + (o.fiscalCargo ? ' — ' + o.fiscalCargo : '')) + '</div>' +
     '<div class="rod">' + esc(o.nome) + ' · diário ' + n + ' de ' + total + '</div></div>';
   return h;

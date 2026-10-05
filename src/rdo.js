@@ -15,7 +15,7 @@ function novoRdo(o, data) {
     clima: { houve: true, motivo: '', manha: '', tarde: '', horasParadas: 0, chuvaMm: null },
     maoDeObra: mao, terceiros: [], atividades: [], equipamentos: eq, fotos: [], ocorrencias: [],
     seguranca: { dds: null, tema: '', acidente: null, descAcidente: '' }, materiais: [], visitas: [],
-    observacoes: '', assinaturas: { responsavel: { nome: App.config.responsavel || '', img: '' },
+    observacoes: '', assinaturas: { responsavel: { nome: o.engenheiro || App.config.responsavel || '', img: '' },
       fiscal: { nome: o.fiscalNome || '', img: '' } }, nada: {} };
 }
 
@@ -53,7 +53,7 @@ function telaRdo(o, data) {
   r.nada = r.nada || {};
   App.rdoAtual = r; App.obraAtual = o;
   const pz = prazoDe(o, data);
-  let h = topo(cap(extenso(data)), o.nome + (pz ? ' · dia ' + pz.dia + (pz.total ? ' de ' + pz.total : '') : ''),
+  let h = topo(cap(extenso(data)), o.nome,
     '#/obra/' + o.id + '/diario', '<span class="salvo" id="salvo">' + (App.rdos[k] ? 'Salvo' : '') + '</span>');
   h += '<main>';
 
@@ -61,14 +61,17 @@ function telaRdo(o, data) {
     h += '<div class="aviso o">' + ic('ok') + '<div><b>Diário fechado' + (r.concluidoEm ? ' em ' + br(r.concluidoEm.slice(0, 10)) : '') +
       '.</b> Você ainda pode corrigir; a alteração fica registrada.</div></div>';
 
+  if (pz) h += '<div class="faixa-prazo"><b>RDO nº ' + Math.max(pz.dia, 0) + '</b><span>' + textoPrazo(pz) + '</span></div>';
+
   // atalho: copiar do último dia
   const vazio = !App.rdos[k] || (totalMao(r) === 0 && !r.atividades.length);
+  const ant = rdosDa(o.id).filter(x => x.data < data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
+  App.rdoAnterior = ant || null;
   if (vazio) {
-    const ant = rdosDa(o.id).filter(x => x.data < data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
     if (ant) h += '<button class="cartao" data-a="copiarAnterior" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 15px;text-align:left;border-color:var(--acao)">' +
       '<span class="ico" style="width:40px;height:40px;border-radius:11px;background:var(--acao-suave);color:var(--acao);display:grid;place-items:center;flex:none">' + ic('copiar') + '</span>' +
       '<span style="flex:1"><b style="display:block">Começar copiando ' + br(ant.data) + '</b><span style="font-size:13px;color:var(--tinta2)">' +
-      'Traz equipe, equipamentos e os serviços que ficaram em andamento</span></span>' + ic('seta') + '</button>';
+      'Copia todos os blocos de uma vez — ou use "copiar" em cada bloco</span></span>' + ic('seta') + '</button>';
   }
 
   h += '<div class="grade2" id="cartoes">' + secoesVisiveis(o, r).map(s => cartao(s, r, o)).join('') + '</div>';
@@ -92,7 +95,17 @@ function cartao(sec, r, o) {
     '<div class="cartao-cab"><div class="ico">' + ic(def[2]) + '</div><h2>' + def[1] +
     '<span class="resumo">' + esc(resumoSecao(sec, r)) + '</span></h2>' +
     (ok ? '<span class="marca-ok" title="preenchido">' + ic('ok') + '</span>' : '<span class="marca-vazia" title="não preenchido"></span>') +
-    '</div><div class="cartao-corpo">' + corpoSecao(sec, r, o) + '</div></section>';
+    '</div><div class="cartao-corpo">' + botaoCopiar(sec) + corpoSecao(sec, r, o) + '</div></section>';
+}
+
+/* blocos que dá para trazer do dia anterior, um a um */
+const COPIAVEIS = { clima: 'Clima', maoDeObra: 'Equipe', atividades: 'Serviços em andamento', equipamentos: 'Equipamentos',
+  observacoes: 'Observações' };
+function botaoCopiar(sec) {
+  const ant = App.rdoAnterior;
+  if (!ant || !COPIAVEIS[sec]) return '';
+  return '<button class="copiar-bloco" data-a="copiarBloco" data-s="' + sec + '">' + ic('copiar') +
+    'Copiar do dia anterior (' + br(ant.data).slice(0, 5) + ')</button>';
 }
 
 function resumoSecao(sec, r) {

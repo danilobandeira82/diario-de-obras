@@ -125,7 +125,8 @@ const lerComo = (arq, modo) => new Promise((res, rej) => {
 const blobParaUrl = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
 const urlParaBlob = u => fetch(u).then(r => r.blob());
 
-function comprimirFoto(arq, max) {
+/* carimbo: texto escrito no canto da foto (data e hora), para valer como registro */
+function comprimirFoto(arq, max, carimbo) {
   max = max || 1600;
   return lerComo(arq, 'url').then(url => new Promise((res, rej) => {
     const img = new Image();
@@ -133,7 +134,14 @@ function comprimirFoto(arq, max) {
       let w = img.naturalWidth, h = img.naturalHeight;
       if (Math.max(w, h) > max) { const f = max / Math.max(w, h); w = Math.round(w * f); h = Math.round(h * f); }
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      const g = cv.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+      if (carimbo) {
+        const fs = Math.max(14, Math.round(Math.min(w, h) * 0.035)), pad = Math.round(fs * 0.45);
+        g.font = 'bold ' + fs + 'px Arial, sans-serif';
+        const tw = g.measureText(carimbo).width;
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(w - tw - pad * 3, h - fs - pad * 3, tw + pad * 2, fs + pad * 2);
+        g.fillStyle = '#ffd400'; g.textBaseline = 'top'; g.fillText(carimbo, w - tw - pad * 2, h - fs - pad * 2);
+      }
       cv.toBlob(b => b ? res(b) : rej(new Error('Não foi possível processar a foto.')), 'image/jpeg', 0.78);
     };
     img.onerror = () => rej(new Error('Arquivo de imagem inválido.'));

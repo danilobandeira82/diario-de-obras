@@ -103,6 +103,12 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .linha-qtd:last-child{border-bottom:0}
 .linha-qtd .nome{flex:1;font-size:15px;min-width:0}
 .linha-qtd.zero .nome{color:var(--tinta3)}
+.copiar-bloco{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 12px;padding:9px 12px;border:1.5px dashed var(--acao);border-radius:11px;
+  background:var(--acao-suave);color:var(--acao2);font-size:14px;font-weight:600;text-align:left}
+.copiar-bloco svg{width:18px;height:18px;flex:none}
+.faixa-prazo{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;background:var(--aco);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.faixa-prazo b{font-size:17px}
+.faixa-prazo span{font-size:14.5px;opacity:.9}
 .linha-num{padding:9px 0 10px;border-bottom:1px solid #edf0f3}
 .linha-num:last-child{border-bottom:0}
 .linha-num .nome{display:block;font-size:15px;margin-bottom:6px}
@@ -387,7 +393,8 @@ const lerComo = (arq, modo) => new Promise((res, rej) => {
 const blobParaUrl = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
 const urlParaBlob = u => fetch(u).then(r => r.blob());
 
-function comprimirFoto(arq, max) {
+/* carimbo: texto escrito no canto da foto (data e hora), para valer como registro */
+function comprimirFoto(arq, max, carimbo) {
   max = max || 1600;
   return lerComo(arq, 'url').then(url => new Promise((res, rej) => {
     const img = new Image();
@@ -395,7 +402,14 @@ function comprimirFoto(arq, max) {
       let w = img.naturalWidth, h = img.naturalHeight;
       if (Math.max(w, h) > max) { const f = max / Math.max(w, h); w = Math.round(w * f); h = Math.round(h * f); }
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      const g = cv.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+      if (carimbo) {
+        const fs = Math.max(14, Math.round(Math.min(w, h) * 0.035)), pad = Math.round(fs * 0.45);
+        g.font = 'bold ' + fs + 'px Arial, sans-serif';
+        const tw = g.measureText(carimbo).width;
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(w - tw - pad * 3, h - fs - pad * 3, tw + pad * 2, fs + pad * 2);
+        g.fillStyle = '#ffd400'; g.textBaseline = 'top'; g.fillText(carimbo, w - tw - pad * 2, h - fs - pad * 2);
+      }
       cv.toBlob(b => b ? res(b) : rej(new Error('Não foi possível processar a foto.')), 'image/jpeg', 0.78);
     };
     img.onerror = () => rej(new Error('Arquivo de imagem inválido.'));
@@ -526,6 +540,14 @@ function prazoDe(obra, iso) {
   const dia = difDias(obra.inicio, iso) + 1, total = +obra.prazoDias || 0;
   return { dia, total, restam: total ? total - dia : null };
 }
+/* "Dia 10 de 365 · faltam 355" — conta dias corridos (sábado e domingo entram) */
+function textoPrazo(pz) {
+  if (!pz) return '';
+  if (pz.dia < 1) return 'antes do início da obra';
+  if (!pz.total) return 'Dia ' + pz.dia;
+  if (pz.restam < 0) return 'Dia ' + pz.dia + ' de ' + pz.total + ' · prazo vencido há ' + (-pz.restam) + ' dia' + (pz.restam === -1 ? '' : 's');
+  return 'Dia ' + pz.dia + ' de ' + pz.total + ' · falta' + (pz.restam === 1 ? ' 1 dia' : 'm ' + pz.restam + ' dias');
+}
 const docsFaltando = obra => DOCS_EXIGIDOS.filter(t => !(obra.docs || []).some(d => d.tipo === t));
 
 /* ---------------- navegação ---------------- */
@@ -584,8 +606,8 @@ function telaInicio() {
     h += '<div class="cartao vazio">' + ic('predio') + '<h3>Nenhuma obra ainda</h3>' +
       '<p>Cadastre a primeira obra para começar o diário.</p>' +
       '<div style="display:flex;flex-direction:column;gap:9px;max-width:320px;margin:18px auto 0">' +
-      '<button class="btn pri" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Cadastrar obra</button>' +
-      '<button class="btn sec" data-a="exemplo">Ver com uma obra de exemplo</button></div></div>';
+      '<button class="btn pri" data-a="ir" data-h="#/obra/nova">' + ic('mais') + 'Cadastrar obra e começar</button>' +
+      '<button class="btn sec" data-a="exemplo">Ver uma obra de exemplo já preenchida</button></div></div>';
   }
 
   ativas.forEach(o => {
@@ -802,8 +824,12 @@ function abaCadastro(o) {
 }
 
 /* ---------------- FORMULÁRIO DA OBRA ---------------- */
+function textoTermino(ini, prazo) {
+  if (!ini || !(+prazo > 0)) return 'Informe início e prazo para ver a data de término.';
+  return 'Término previsto: ' + br(somaDias(ini, +prazo - 1)) + ' (contando sábados, domingos e feriados).';
+}
 function telaObraForm(id) {
-  const o = id ? obraPor(id) : { inicio: hojeIso(), turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30', tipo: 'Edificação nova' };
+  const o = id ? obraPor(id) : { inicio: hojeIso(), engenheiro: App.config.responsavel || '', crea: App.config.crea || '', turnoManha: '07:30 às 12:00', turnoTarde: '13:00 às 17:30', tipo: 'Edificação nova' };
   const c = (k, rot, tipo, ph) => '<label class="rot">' + rot + '</label><input class="campo" name="' + k + '" type="' + (tipo || 'text') +
     '" value="' + esc(o[k] || '') + '" placeholder="' + esc(ph || '') + '">';
   let h = topo(id ? 'Editar obra' : 'Nova obra', '', id ? '#/obra/' + id + '/cadastro' : '#/');
@@ -816,6 +842,8 @@ function telaObraForm(id) {
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('contrato', 'Nº do contrato') + '</div><div>' + c('art', 'Nº ART/RRT') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('inicio', 'Início da obra *', 'date') + '</div><div>' +
       c('prazoDias', 'Prazo (dias corridos)', 'number', '365') + '</div></div>' +
+    '<div id="terminoObra" class="dica" style="margin-top:6px">' + textoTermino(o.inicio, o.prazoDias) + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('engenheiro', 'Engenheiro responsável') + '</div><div>' + c('crea', 'CREA/CAU') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('fiscalNome', 'Fiscal do contrato') + '</div><div>' + c('fiscalCargo', 'Cargo / órgão') + '</div></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>' + c('turnoManha', 'Turno manhã') + '</div><div>' + c('turnoTarde', 'Turno tarde') + '</div></div>' +
     '<input type="hidden" name="tipo" value="' + esc(o.tipo || 'Edificação nova') + '">' +
@@ -842,7 +870,11 @@ function telaConfig() {
     '(pendrive ou e-mail para você mesmo). A cópia leva tudo: textos, fotos, assinaturas e documentos.</p>' +
     '<p style="font-size:13.5px;margin:0 0 12px"><b>Última cópia:</b> ' + (c.ultimoBackup ? br(c.ultimoBackup) : 'nunca') + '</p>' +
     '<button class="btn pri cheio" data-a="backup">' + ic('baixar') + 'Salvar cópia de segurança</button>' +
-    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label></div></div>';
+    '<label class="btn sec cheio" style="margin-top:9px">' + ic('subir') + 'Restaurar uma cópia<input type="file" accept=".json,application/json" hidden data-c="restaurar"></label>' +
+    '<label class="rot" style="margin-top:16px">Para o escritório / diretoria</label>' +
+    '<p style="font-size:13.5px;color:var(--tinta2);margin:0 0 8px">Recebeu a cópia de segurança de um engenheiro? Junte aqui para ver as obras dele neste aparelho. ' +
+    'Não apaga nada do que já está aqui; se a mesma obra vier de novo, os diários são atualizados.</p>' +
+    '<label class="btn pri cheio">' + ic('subir') + 'Juntar diários recebidos<input type="file" accept=".json,application/json" multiple hidden data-c="juntar"></label></div></div>';
 
   h += '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('config') + '</div><h2>Este aparelho</h2></div><div class="cartao-corpo" id="diag">' +
     '<p style="font-size:14px;margin:0 0 6px"><b>Guardando em:</b> ' + (Banco.motor === 'indexeddb' ? 'banco do navegador (IndexedDB)' : '<span style="color:var(--erro)">somente memória — não salva</span>') + '</p>' +
@@ -877,7 +909,7 @@ function novoRdo(o, data) {
     clima: { houve: true, motivo: '', manha: '', tarde: '', horasParadas: 0, chuvaMm: null },
     maoDeObra: mao, terceiros: [], atividades: [], equipamentos: eq, fotos: [], ocorrencias: [],
     seguranca: { dds: null, tema: '', acidente: null, descAcidente: '' }, materiais: [], visitas: [],
-    observacoes: '', assinaturas: { responsavel: { nome: App.config.responsavel || '', img: '' },
+    observacoes: '', assinaturas: { responsavel: { nome: o.engenheiro || App.config.responsavel || '', img: '' },
       fiscal: { nome: o.fiscalNome || '', img: '' } }, nada: {} };
 }
 
@@ -915,7 +947,7 @@ function telaRdo(o, data) {
   r.nada = r.nada || {};
   App.rdoAtual = r; App.obraAtual = o;
   const pz = prazoDe(o, data);
-  let h = topo(cap(extenso(data)), o.nome + (pz ? ' · dia ' + pz.dia + (pz.total ? ' de ' + pz.total : '') : ''),
+  let h = topo(cap(extenso(data)), o.nome,
     '#/obra/' + o.id + '/diario', '<span class="salvo" id="salvo">' + (App.rdos[k] ? 'Salvo' : '') + '</span>');
   h += '<main>';
 
@@ -923,14 +955,17 @@ function telaRdo(o, data) {
     h += '<div class="aviso o">' + ic('ok') + '<div><b>Diário fechado' + (r.concluidoEm ? ' em ' + br(r.concluidoEm.slice(0, 10)) : '') +
       '.</b> Você ainda pode corrigir; a alteração fica registrada.</div></div>';
 
+  if (pz) h += '<div class="faixa-prazo"><b>RDO nº ' + Math.max(pz.dia, 0) + '</b><span>' + textoPrazo(pz) + '</span></div>';
+
   // atalho: copiar do último dia
   const vazio = !App.rdos[k] || (totalMao(r) === 0 && !r.atividades.length);
+  const ant = rdosDa(o.id).filter(x => x.data < data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
+  App.rdoAnterior = ant || null;
   if (vazio) {
-    const ant = rdosDa(o.id).filter(x => x.data < data).sort((a, b) => b.data < a.data ? -1 : 1)[0];
     if (ant) h += '<button class="cartao" data-a="copiarAnterior" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 15px;text-align:left;border-color:var(--acao)">' +
       '<span class="ico" style="width:40px;height:40px;border-radius:11px;background:var(--acao-suave);color:var(--acao);display:grid;place-items:center;flex:none">' + ic('copiar') + '</span>' +
       '<span style="flex:1"><b style="display:block">Começar copiando ' + br(ant.data) + '</b><span style="font-size:13px;color:var(--tinta2)">' +
-      'Traz equipe, equipamentos e os serviços que ficaram em andamento</span></span>' + ic('seta') + '</button>';
+      'Copia todos os blocos de uma vez — ou use "copiar" em cada bloco</span></span>' + ic('seta') + '</button>';
   }
 
   h += '<div class="grade2" id="cartoes">' + secoesVisiveis(o, r).map(s => cartao(s, r, o)).join('') + '</div>';
@@ -954,7 +989,17 @@ function cartao(sec, r, o) {
     '<div class="cartao-cab"><div class="ico">' + ic(def[2]) + '</div><h2>' + def[1] +
     '<span class="resumo">' + esc(resumoSecao(sec, r)) + '</span></h2>' +
     (ok ? '<span class="marca-ok" title="preenchido">' + ic('ok') + '</span>' : '<span class="marca-vazia" title="não preenchido"></span>') +
-    '</div><div class="cartao-corpo">' + corpoSecao(sec, r, o) + '</div></section>';
+    '</div><div class="cartao-corpo">' + botaoCopiar(sec) + corpoSecao(sec, r, o) + '</div></section>';
+}
+
+/* blocos que dá para trazer do dia anterior, um a um */
+const COPIAVEIS = { clima: 'Clima', maoDeObra: 'Equipe', atividades: 'Serviços em andamento', equipamentos: 'Equipamentos',
+  observacoes: 'Observações' };
+function botaoCopiar(sec) {
+  const ant = App.rdoAnterior;
+  if (!ant || !COPIAVEIS[sec]) return '';
+  return '<button class="copiar-bloco" data-a="copiarBloco" data-s="' + sec + '">' + ic('copiar') +
+    'Copiar do dia anterior (' + br(ant.data).slice(0, 5) + ')</button>';
 }
 
 function resumoSecao(sec, r) {
@@ -1232,7 +1277,7 @@ const A = {
     if (o.cidade !== d.cidade) { delete o.lat; delete o.lon; }
     Object.assign(o, d);
     if (!id) App.obras.push(o);
-    salvarObra(o).then(() => { toast(id ? 'Obra atualizada' : 'Obra cadastrada'); ir('#/obra/' + o.id + (id ? '/cadastro' : '/cadastro')); });
+    salvarObra(o).then(() => { toast(id ? 'Obra atualizada' : 'Obra cadastrada — toque num dia do calendário para preencher'); ir('#/obra/' + o.id + (id ? '/cadastro' : '/diario')); });
   },
   toggleLista: el => {
     const o = obraPor(App.rota.id), c = el.dataset.campo, v = el.dataset.v;
@@ -1329,13 +1374,15 @@ const A = {
 
   /* ---- concluir ---- */
   copiarAnterior: () => copiarAnterior(),
+  copiarBloco: el => copiarBloco(el.dataset.s),
   concluir: () => concluirDia(),
   irSecao: el => { fecharFolha(); const c = $('#c-' + el.dataset.s); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.style.boxShadow = '0 0 0 3px var(--acao)'; setTimeout(() => c.style.boxShadow = '', 1800); } },
   fecharMesmoAssim: () => { fecharFolha(); if (App._fechar) App._fechar(); },
 
   /* ---- relatórios / config ---- */
-  pdf: el => gerarPdf(el.dataset),
-  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: $('#pFotos').checked ? '1' : '0' }),
+  pdfFotos: el => { App.pdfFotos = el.dataset.v === '1'; const y = scrollY; render(); scrollTo(0, y); },
+  pdf: el => gerarPdf({ ini: el.dataset.ini, fim: el.dataset.fim, rotulo: el.dataset.rotulo, fotos: App.pdfFotos === false ? '0' : '1' }),
+  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: App.pdfFotos === false ? '0' : '1' }),
   excel: () => gerarExcel(obraPor(App.rota.id)),
   backup: () => salvarBackup(),
   testar: () => testarAparelho()
@@ -1356,6 +1403,24 @@ function escolherDaLista(titulo, itens, aoEscolher, livre) {
       };
       usar.onclick = () => { const v = filtro.value.trim(); if (v) { fecharFolha(); aoEscolher(v); } };
     });
+}
+
+function copiarBloco(sec) {
+  const r = R(), ant = App.rdoAnterior;
+  if (!ant) return;
+  const c = JSON.parse(JSON.stringify(ant));
+  if (sec === 'clima') { ['houve', 'motivo', 'manha', 'tarde', 'horasParadas'].forEach(k => r.clima[k] = c.clima[k]); }
+  else if (sec === 'maoDeObra') { r.maoDeObra = c.maoDeObra; r.terceiros = c.terceiros.map(t => Object.assign(t, { id: uid() })); }
+  else if (sec === 'atividades') {
+    const novas = c.atividades.filter(a => a.status !== 'concluida').map(a => Object.assign(a, { id: uid(), status: 'andamento' }));
+    if (!novas.length) return toast('No dia ' + br(ant.data) + ' não ficou serviço em andamento');
+    r.atividades = r.atividades.filter(a => (a.descricao || '').trim() || a.frente).concat(novas);
+  }
+  else if (sec === 'equipamentos') { r.equipamentos = c.equipamentos; if (Object.values(r.equipamentos).some(v => v > 0)) delete r.nada.equipamentos; }
+  else if (sec === 'observacoes') { r.observacoes = c.observacoes || ''; }
+  alterado();
+  redesenhar(sec === 'clima' ? '*' : sec);
+  toast('Copiado de ' + br(ant.data) + ': ' + COPIAVEIS[sec] + ' — mude o que for diferente');
 }
 
 function copiarAnterior() {
@@ -1384,6 +1449,9 @@ document.addEventListener('click', e => {
 /* ---- digitação e arquivos ---- */
 document.addEventListener('input', e => {
   const el = e.target, c = el.dataset && el.dataset.c;
+  if (el.form && el.form.id === 'formObra' && (el.name === 'inicio' || el.name === 'prazoDias')) {
+    const t = $('#terminoObra'); if (t) t.textContent = textoTermino(el.form.inicio.value, el.form.prazoDias.value);
+  }
   if (!c) return;
   if (c === 'campoLista') { const x = achar(el.dataset.lista, el.dataset.id); x[el.dataset.k] = el.value; alterado(); }
   else if (c === 'obs') { R().observacoes = el.value; if (el.value.trim()) delete R().nada.observacoes; alterado(); }
@@ -1404,7 +1472,9 @@ document.addEventListener('change', e => {
     const prox = () => {
       if (i >= arqs.length) { if (st) st.innerHTML = ''; delete r.nada.fotos; alterado('fotos'); return; }
       if (st) st.innerHTML = '<p class="dica">Guardando foto ' + (i + 1) + ' de ' + arqs.length + '…</p>';
-      comprimirFoto(arqs[i]).then(blob => {
+      const qd = new Date(arqs[i].lastModified || Date.now()), d2 = n => String(n).padStart(2, '0');
+      const carimbo = d2(qd.getDate()) + '/' + d2(qd.getMonth() + 1) + '/' + qd.getFullYear() + ' ' + d2(qd.getHours()) + ':' + d2(qd.getMinutes());
+      comprimirFoto(arqs[i], 1600, carimbo).then(blob => {
         const id = uid();
         return Banco.gravar('fotos', id, { id, obraId: r.obraId, data: r.data, blob }).then(() => r.fotos.push({ id, legenda: '' }));
       }).then(() => { i++; prox(); }).catch(err => { toast('Foto não salva: ' + err.message, 4000); i++; prox(); });
@@ -1424,6 +1494,7 @@ document.addEventListener('change', e => {
     comprimirFoto(arqs[0], 500).then(blobParaUrl).then(u => { App.config.logo = u; return salvarConfig(); }).then(() => { toast('Logo salvo'); render(); });
   }
   else if (c === 'restaurar') restaurarBackup(arqs[0]);
+  else if (c === 'juntar') juntarBackups(arqs);
 });
 
 /* =====================================================================
@@ -1535,6 +1606,24 @@ function restaurarBackup(arq) {
   }).catch(e => toast(e.message || 'Arquivo inválido', 5000));
 }
 
+/* Junta cópias de vários engenheiros num aparelho só (diretoria). Não apaga nada. */
+function juntarBackups(arqs) {
+  let obras = 0, dias = 0, fotos = 0;
+  toast('Juntando…', 3000);
+  arqs.reduce((pr, arq) => pr.then(() => lerComo(arq, 'url').then(u => fetch(u)).then(r => r.json()).then(p => {
+    if (!p || p.app !== 'diario-de-obras') throw new Error(arq.name + ' não é uma cópia do Diário de Obras.');
+    const t = [];
+    p.obras.forEach(o => { t.push(Banco.gravar('obras', o.id, o)); obras++; });
+    p.rdos.forEach(r => { t.push(Banco.gravar('rdos', chaveRdo(r.obraId, r.data), r)); dias++; });
+    return Promise.all(t)
+      .then(() => p.fotos.reduce((q, f) => q.then(() => urlParaBlob(f.url).then(b => { fotos++; return Banco.gravar('fotos', f.id, { id: f.id, obraId: f.obraId, data: f.data, blob: b }); })), Promise.resolve()))
+      .then(() => (p.docs || []).reduce((q, d) => q.then(() => urlParaBlob(d.url).then(b => Banco.gravar('docs', d.id, { id: d.id, nome: d.nome, tipo: d.tipo, blob: b }))), Promise.resolve()));
+  })), Promise.resolve())
+    .then(() => carregarTudo())
+    .then(() => { toast('Juntado: ' + obras + ' obra(s), ' + dias + ' diário(s), ' + fotos + ' foto(s)', 4000); ir('#/'); })
+    .catch(e => { toast(e.message || 'Arquivo inválido', 5000); carregarTudo().then(render); });
+}
+
 function testarAparelho() {
   const linhas = [], tam = 3 * 1048576;
   const blob = new Blob([new Uint8Array(tam)]);
@@ -1624,22 +1713,32 @@ function criarExemplo() {
  * RELATÓRIOS — PDF em folha A4 e planilha Excel (.xlsx)
  * ===================================================================== */
 function abaRelatorios(o) {
-  const hoje = hojeIso(), d = dataDe(hoje);
-  const iniMes = isoDe(new Date(d.getFullYear(), d.getMonth(), 1)), fimMes = isoDe(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-  const iniAnt = isoDe(new Date(d.getFullYear(), d.getMonth() - 1, 1)), fimAnt = isoDe(new Date(d.getFullYear(), d.getMonth(), 0));
-  const nMes = MESES[d.getMonth()], nAnt = MESES[(d.getMonth() + 11) % 12];
+  const hoje = hojeIso(), d = dataDe(hoje), A_ = d.getFullYear(), M = d.getMonth();
+  const seg = somaDias(hoje, -((d.getDay() + 6) % 7));           // segunda-feira desta semana
+  const per = [
+    [seg, somaDias(seg, 6), 'Esta semana'],
+    [somaDias(seg, -7), somaDias(seg, -1), 'Semana passada'],
+    [isoDe(new Date(A_, M, 1)), isoDe(new Date(A_, M + 1, 0)), cap(MESES[M]) + ' (mês atual)'],
+    [isoDe(new Date(A_, M - 1, 1)), isoDe(new Date(A_, M, 0)), cap(MESES[(M + 11) % 12]) + ' (mês anterior)'],
+    [A_ + '-01-01', A_ + '-12-31', 'Ano de ' + A_],
+    [o.inicio, hoje > o.inicio ? hoje : o.inicio, 'Obra inteira']
+  ];
+  const fotos = App.pdfFotos !== false;
   const bt = (ini, fim, rot) => '<button class="item" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left" data-a="pdf" data-ini="' + ini +
-    '" data-fim="' + fim + '" data-rotulo="' + esc(rot) + '" data-fotos="1"><span style="flex:1"><b>' + esc(rot) + '</b><span style="display:block;font-size:12.5px;color:var(--tinta2)">' +
+    '" data-fim="' + fim + '" data-rotulo="' + esc(rot) + '"><span style="flex:1"><b>' + esc(rot) + '</b><span style="display:block;font-size:12.5px;color:var(--tinta2)">' +
     br(ini) + ' a ' + br(fim) + ' · ' + rdosDa(o.id).filter(r => r.data >= ini && r.data <= fim).length + ' diário(s)</span></span>' + ic('seta') + '</button>';
   return '<div class="grade2">' +
-    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pdf') + '</div><h2>Diário em PDF<span class="resumo">Uma folha A4 por dia, fotos na folha seguinte</span></h2></div>' +
-    '<div class="cartao-corpo">' + bt(iniMes, fimMes, cap(nMes) + ' (mês atual)') + bt(iniAnt, fimAnt, cap(nAnt) + ' (mês anterior)') +
-    bt(o.inicio, hoje, 'Obra inteira') +
-    '<label class="rot">Outro período</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="date" class="campo" id="pIni" value="' + iniMes + '">' +
+    '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('pdf') + '</div><h2>Imprimir / PDF<span class="resumo">Cada dia numa folha A4</span></h2></div>' +
+    '<div class="cartao-corpo"><div class="seg" style="margin-bottom:6px">' +
+      '<button class="' + (fotos ? 'on' : '') + '" data-a="pdfFotos" data-v="1">' + ic('camera') + 'Com fotos</button>' +
+      '<button class="' + (fotos ? '' : 'on') + '" data-a="pdfFotos" data-v="0">' + ic('pdf') + 'Sem fotos</button></div>' +
+    '<p class="dica" style="margin:0 0 10px">' + (fotos ? 'Depois de cada dia vêm as fotos dele, 6 por folha, todas do mesmo tamanho.'
+      : 'Só a folha do dia, com tudo numa página.') + '</p>' +
+    per.map(p => bt(p[0], p[1], p[2])).join('') +
+    '<label class="rot">Outro período</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="date" class="campo" id="pIni" value="' + per[2][0] + '">' +
     '<input type="date" class="campo" id="pFim" value="' + hoje + '"></div>' +
-    '<label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14.5px"><input type="checkbox" id="pFotos" checked style="width:20px;height:20px"> Incluir as fotos</label>' +
-    '<button class="btn sec cheio" data-a="pdfPeriodo">' + ic('pdf') + 'Gerar deste período</button>' +
-    '<p class="dica">' + ic('alerta') + 'Na janela que abrir, escolha "Salvar como PDF".</p></div></div>' +
+    '<button class="btn sec cheio" style="margin-top:10px" data-a="pdfPeriodo">' + ic('pdf') + 'Imprimir este período</button>' +
+    '<p class="dica">' + ic('alerta') + 'Na janela que abrir, escolha a impressora ou "Salvar como PDF".</p></div></div>' +
     '<div class="cartao"><div class="cartao-cab"><div class="ico">' + ic('planilha') + '</div><h2>Planilha Excel<span class="resumo">Todos os dias, um por linha</span></h2></div>' +
     '<div class="cartao-corpo"><p style="font-size:14px;color:var(--tinta2);margin:0 0 12px">Abas: Diários, Serviços, Mão de obra, Ocorrências e Fotos. ' +
     'Bom para o arquivo de encerramento e para medir produtividade.</p>' +
@@ -1651,7 +1750,9 @@ function abaRelatorios(o) {
 
 /* ---------------- PDF (impressão do navegador) ---------------- */
 const CSS_IMP = `
-#impressao{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:8.6pt;line-height:1.28}
+#impressao{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9.5pt;line-height:1.3}
+#impressao.medir{display:block !important;position:absolute;left:-10000px;top:0;width:188mm}
+#impressao.medir .pg{min-height:0}
 #impressao .pg{page-break-after:always;break-after:page;position:relative;min-height:270mm;display:flex;flex-direction:column}
 #impressao .pg:last-child{page-break-after:auto;break-after:auto}
 #impressao .cab{display:flex;align-items:center;gap:4mm;border-bottom:2px solid #1d3550;padding-bottom:2.5mm;margin-bottom:3mm}
@@ -1661,26 +1762,27 @@ const CSS_IMP = `
 #impressao .cab .t span{font-size:8pt;color:#555}
 #impressao .cab .d{text-align:right;border:1.5px solid #1d3550;border-radius:2mm;padding:1.5mm 3mm}
 #impressao .cab .d b{display:block;font-size:11pt}
+#impressao .cab .d em{display:block;font-style:normal;font-weight:700;font-size:8pt;color:#1d3550}
 #impressao .cab .d span{font-size:7.5pt;color:#555}
 #impressao .g{display:grid;border-top:.3mm solid #b9c2cc;border-left:.3mm solid #b9c2cc;margin-bottom:2.2mm}
 #impressao .g>div{border-right:.3mm solid #b9c2cc;border-bottom:.3mm solid #b9c2cc;padding:1mm 1.6mm;min-width:0}
-#impressao .g i{display:block;font-style:normal;font-size:6pt;text-transform:uppercase;color:#5b6773;font-weight:700;letter-spacing:.2px}
-#impressao h4{margin:3mm 0 1.2mm;font-size:8pt;text-transform:uppercase;color:#1d3550;letter-spacing:.4px;border-bottom:.3mm solid #b9c2cc;padding-bottom:.6mm}
+#impressao .g i{display:block;font-style:normal;font-size:.7em;text-transform:uppercase;color:#5b6773;font-weight:700;letter-spacing:.2px}
+#impressao h4{margin:3mm 0 1.2mm;font-size:.88em;text-transform:uppercase;color:#1d3550;letter-spacing:.4px;border-bottom:.3mm solid #b9c2cc;padding-bottom:.6mm}
 #impressao table{border-collapse:collapse;width:100%;margin-bottom:1.5mm}
 #impressao th,#impressao td{border:.3mm solid #b9c2cc;padding:.9mm 1.4mm;text-align:left;vertical-align:top}
-#impressao th{background:#eef2f7;font-size:6.6pt;text-transform:uppercase;letter-spacing:.2px}
+#impressao th{background:#eef2f7;font-size:.74em;text-transform:uppercase;letter-spacing:.2px}
 #impressao .tot{font-weight:700;margin:.6mm 0 1.4mm}
 #impressao .txt{white-space:pre-wrap}
 #impressao .ass{margin-top:auto;padding-top:6mm;display:flex;gap:10mm;break-inside:avoid;page-break-inside:avoid}
-#impressao .ass>div{flex:1;text-align:center;font-size:7.6pt}
+#impressao .ass>div{flex:1;text-align:center;font-size:.85em}
 #impressao .ass img{height:15mm;max-width:100%;object-fit:contain;display:block;margin:0 auto}
 #impressao .ass .ln{border-top:.3mm solid #333;margin-top:1mm;padding-top:1mm}
 #impressao .ass .vz{height:15mm}
-#impressao .rod{margin-top:2mm;font-size:6.5pt;color:#888;text-align:center}
-#impressao .fotos{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
-#impressao .fotos figure{margin:0}
-#impressao .fotos img{width:100%;height:74mm;object-fit:contain;background:#f1f3f5;border:.3mm solid #b9c2cc;display:block}
-#impressao .fotos figcaption{font-size:7.5pt;color:#444;margin-top:1mm;font-style:italic}
+#impressao .rod{margin-top:2mm;font-size:.72em;color:#888;text-align:center}
+#impressao .fotos{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:80mm;gap:3mm 4mm}
+#impressao .fotos figure{margin:0;display:flex;flex-direction:column;min-height:0}
+#impressao .fotos img{width:100%;height:73mm;flex:none;object-fit:contain;background:#f1f3f5;border:.3mm solid #b9c2cc;display:block}
+#impressao .fotos figcaption{font-size:7.5pt;color:#444;margin-top:1mm;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #impressao .capa h1{font-size:22pt;text-align:center;margin:38mm 0 2mm;color:#1d3550}
 #impressao .capa .sub{text-align:center;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:12mm}
 `;
@@ -1696,7 +1798,7 @@ function gerarPdf(p) {
     const urls = Object.fromEntries(pares);
     let h = '<style>' + CSS_IMP + '</style>' + capaPdf(o, rs, p.rotulo);
     rs.forEach((r, i) => {
-      h += folhaDia(o, r, i + 1, rs.length);
+      h += folhaDia(o, r, i + 1, rs.length, comFotos);
       if (comFotos && r.fotos && r.fotos.length) {
         for (let k = 0; k < r.fotos.length; k += 6) h += folhaFotos(o, r, r.fotos.slice(k, k + 6), k, urls);
       }
@@ -1705,17 +1807,30 @@ function gerarPdf(p) {
     el.innerHTML = h;
     const imgs = Array.from(el.querySelectorAll('img'));
     Promise.all(imgs.map(im => im.complete ? 1 : new Promise(res => { im.onload = im.onerror = res; }))).then(() => {
+      encaixarFolhas(el);
       document.title = 'Diario_' + o.nome.replace(/[^\wÀ-ÿ]+/g, '_') + '_' + p.ini + '_a_' + p.fim;
       setTimeout(() => { window.print(); document.title = 'Diário de Obras'; }, 150);
     });
   });
 }
 
+/* Cada dia cabe numa folha: começa com letra 9,5 e diminui só o necessário (mínimo 6,5). */
+function encaixarFolhas(el) {
+  el.classList.add('medir');
+  const regua = document.createElement('div'); regua.style.height = '272mm'; el.appendChild(regua);
+  const limite = regua.getBoundingClientRect().height; regua.remove();
+  el.querySelectorAll('.pg.folha-dia').forEach(pg => {
+    let fs = 9.5; pg.style.fontSize = fs + 'pt';
+    while (pg.scrollHeight > limite && fs > 6.5) { fs -= 0.25; pg.style.fontSize = fs + 'pt'; }
+  });
+  el.classList.remove('medir');
+}
+
 function cabPdf(o, r) {
   const c = App.config, pz = prazoDe(o, r.data);
   return '<div class="cab">' + (c.logo ? '<img src="' + c.logo + '" alt="">' : '') +
     '<div class="t"><b>RELATÓRIO DIÁRIO DE OBRA</b><span>' + esc(c.empresa || '') + (c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : '') + '</span></div>' +
-    '<div class="d"><b>' + br(r.data) + '</b><span>' + SEMANA[dataDe(r.data).getDay()] + (pz ? ' · dia ' + pz.dia : '') + '</span></div></div>';
+    '<div class="d">' + (pz && pz.dia > 0 ? '<em>RDO nº ' + pz.dia + '</em>' : '') + '<b>' + br(r.data) + '</b><span>' + SEMANA[dataDe(r.data).getDay()] + '</span></div></div>';
 }
 
 function capaPdf(o, rs, rotulo) {
@@ -1737,12 +1852,12 @@ function capaPdf(o, rs, rotulo) {
        ['Fotos', rs.reduce((n, r) => n + (r.fotos || []).length, 0)], ['Emitido em', br(hojeIso())]], 3) + '</div>';
 }
 
-function folhaDia(o, r, n, total) {
+function folhaDia(o, r, n, total, comFotos) {
   const pz = prazoDe(o, r.data), cl = r.clima;
   const g = (lin, col) => '<div class="g" style="grid-template-columns:repeat(' + col + ',1fr)">' + lin.map(x => '<div><i>' + x[0] + '</i>' + esc(x[1]) + '</div>').join('') + '</div>';
-  let h = '<div class="pg">' + cabPdf(o, r) +
+  let h = '<div class="pg folha-dia">' + cabPdf(o, r) +
     g([['Obra', o.nome], ['Contratante', o.cliente || '—'], ['Contrato / ART', (o.contrato || '—') + ' / ' + (o.art || '—')],
-       ['Prazo', pz && pz.total ? 'dia ' + pz.dia + ' de ' + pz.total + ' · restam ' + pz.restam : (pz ? 'dia ' + pz.dia : '—')],
+       ['Prazo', textoPrazo(pz) || '—'],
        ['Situação', r.status === 'concluido' ? 'Fechado' : 'Rascunho'], ['Turnos', (o.turnoManha || '') + ' / ' + (o.turnoTarde || '')]], 3);
 
   if (cl.houve === false) {
@@ -1775,11 +1890,12 @@ function folhaDia(o, r, n, total) {
       r.visitas.map(v => '<tr><td>' + esc(v.nome) + '</td><td>' + esc(v.empresa) + '</td><td>' + esc(v.motivo) + '</td></tr>').join('') + '</table>';
   }
   if ((r.observacoes || '').trim()) h += '<h4>Observações</h4><div class="txt">' + esc(r.observacoes) + '</div>';
-  if (r.fotos && r.fotos.length) h += '<div style="margin-top:2mm;color:#555">Registro fotográfico: ' + r.fotos.length + ' foto(s) na folha seguinte.</div>';
+  if (r.fotos && r.fotos.length) h += '<div style="margin-top:2mm;color:#555">Registro fotográfico: ' + r.fotos.length + ' foto(s)' +
+    (comFotos ? ' na folha seguinte.' : ' guardada(s) no diário (impressão sem fotos).') + '</div>';
 
   const as = r.assinaturas, bloco = (a, papel) => '<div>' + (a && a.img ? '<img src="' + a.img + '" alt="">' : '<div class="vz"></div>') +
     '<div class="ln">' + esc((a && a.nome) || '') + '<br><span style="color:#666">' + papel + '</span></div></div>';
-  h += '<div class="ass">' + bloco(as.responsavel, 'Responsável técnico' + (App.config.crea ? ' — ' + App.config.crea : '')) +
+  h += '<div class="ass">' + bloco(as.responsavel, 'Responsável técnico' + ((o.crea || App.config.crea) ? ' — ' + (o.crea || App.config.crea) : '')) +
     bloco(as.fiscal, 'Fiscalização' + (o.fiscalCargo ? ' — ' + o.fiscalCargo : '')) + '</div>' +
     '<div class="rod">' + esc(o.nome) + ' · diário ' + n + ' de ' + total + '</div></div>';
   return h;

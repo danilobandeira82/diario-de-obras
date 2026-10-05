@@ -26,7 +26,7 @@ const A = {
     if (o.cidade !== d.cidade) { delete o.lat; delete o.lon; }
     Object.assign(o, d);
     if (!id) App.obras.push(o);
-    salvarObra(o).then(() => { toast(id ? 'Obra atualizada' : 'Obra cadastrada'); ir('#/obra/' + o.id + (id ? '/cadastro' : '/cadastro')); });
+    salvarObra(o).then(() => { toast(id ? 'Obra atualizada' : 'Obra cadastrada — toque num dia do calendário para preencher'); ir('#/obra/' + o.id + (id ? '/cadastro' : '/diario')); });
   },
   toggleLista: el => {
     const o = obraPor(App.rota.id), c = el.dataset.campo, v = el.dataset.v;
@@ -123,13 +123,15 @@ const A = {
 
   /* ---- concluir ---- */
   copiarAnterior: () => copiarAnterior(),
+  copiarBloco: el => copiarBloco(el.dataset.s),
   concluir: () => concluirDia(),
   irSecao: el => { fecharFolha(); const c = $('#c-' + el.dataset.s); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); c.style.boxShadow = '0 0 0 3px var(--acao)'; setTimeout(() => c.style.boxShadow = '', 1800); } },
   fecharMesmoAssim: () => { fecharFolha(); if (App._fechar) App._fechar(); },
 
   /* ---- relatórios / config ---- */
-  pdf: el => gerarPdf(el.dataset),
-  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: $('#pFotos').checked ? '1' : '0' }),
+  pdfFotos: el => { App.pdfFotos = el.dataset.v === '1'; const y = scrollY; render(); scrollTo(0, y); },
+  pdf: el => gerarPdf({ ini: el.dataset.ini, fim: el.dataset.fim, rotulo: el.dataset.rotulo, fotos: App.pdfFotos === false ? '0' : '1' }),
+  pdfPeriodo: () => gerarPdf({ ini: $('#pIni').value, fim: $('#pFim').value, rotulo: 'Período ' + br($('#pIni').value) + ' a ' + br($('#pFim').value), fotos: App.pdfFotos === false ? '0' : '1' }),
   excel: () => gerarExcel(obraPor(App.rota.id)),
   backup: () => salvarBackup(),
   testar: () => testarAparelho()
@@ -150,6 +152,24 @@ function escolherDaLista(titulo, itens, aoEscolher, livre) {
       };
       usar.onclick = () => { const v = filtro.value.trim(); if (v) { fecharFolha(); aoEscolher(v); } };
     });
+}
+
+function copiarBloco(sec) {
+  const r = R(), ant = App.rdoAnterior;
+  if (!ant) return;
+  const c = JSON.parse(JSON.stringify(ant));
+  if (sec === 'clima') { ['houve', 'motivo', 'manha', 'tarde', 'horasParadas'].forEach(k => r.clima[k] = c.clima[k]); }
+  else if (sec === 'maoDeObra') { r.maoDeObra = c.maoDeObra; r.terceiros = c.terceiros.map(t => Object.assign(t, { id: uid() })); }
+  else if (sec === 'atividades') {
+    const novas = c.atividades.filter(a => a.status !== 'concluida').map(a => Object.assign(a, { id: uid(), status: 'andamento' }));
+    if (!novas.length) return toast('No dia ' + br(ant.data) + ' não ficou serviço em andamento');
+    r.atividades = r.atividades.filter(a => (a.descricao || '').trim() || a.frente).concat(novas);
+  }
+  else if (sec === 'equipamentos') { r.equipamentos = c.equipamentos; if (Object.values(r.equipamentos).some(v => v > 0)) delete r.nada.equipamentos; }
+  else if (sec === 'observacoes') { r.observacoes = c.observacoes || ''; }
+  alterado();
+  redesenhar(sec === 'clima' ? '*' : sec);
+  toast('Copiado de ' + br(ant.data) + ': ' + COPIAVEIS[sec] + ' — mude o que for diferente');
 }
 
 function copiarAnterior() {
@@ -178,6 +198,9 @@ document.addEventListener('click', e => {
 /* ---- digitação e arquivos ---- */
 document.addEventListener('input', e => {
   const el = e.target, c = el.dataset && el.dataset.c;
+  if (el.form && el.form.id === 'formObra' && (el.name === 'inicio' || el.name === 'prazoDias')) {
+    const t = $('#terminoObra'); if (t) t.textContent = textoTermino(el.form.inicio.value, el.form.prazoDias.value);
+  }
   if (!c) return;
   if (c === 'campoLista') { const x = achar(el.dataset.lista, el.dataset.id); x[el.dataset.k] = el.value; alterado(); }
   else if (c === 'obs') { R().observacoes = el.value; if (el.value.trim()) delete R().nada.observacoes; alterado(); }
@@ -198,7 +221,9 @@ document.addEventListener('change', e => {
     const prox = () => {
       if (i >= arqs.length) { if (st) st.innerHTML = ''; delete r.nada.fotos; alterado('fotos'); return; }
       if (st) st.innerHTML = '<p class="dica">Guardando foto ' + (i + 1) + ' de ' + arqs.length + '…</p>';
-      comprimirFoto(arqs[i]).then(blob => {
+      const qd = new Date(arqs[i].lastModified || Date.now()), d2 = n => String(n).padStart(2, '0');
+      const carimbo = d2(qd.getDate()) + '/' + d2(qd.getMonth() + 1) + '/' + qd.getFullYear() + ' ' + d2(qd.getHours()) + ':' + d2(qd.getMinutes());
+      comprimirFoto(arqs[i], 1600, carimbo).then(blob => {
         const id = uid();
         return Banco.gravar('fotos', id, { id, obraId: r.obraId, data: r.data, blob }).then(() => r.fotos.push({ id, legenda: '' }));
       }).then(() => { i++; prox(); }).catch(err => { toast('Foto não salva: ' + err.message, 4000); i++; prox(); });
@@ -218,4 +243,5 @@ document.addEventListener('change', e => {
     comprimirFoto(arqs[0], 500).then(blobParaUrl).then(u => { App.config.logo = u; return salvarConfig(); }).then(() => { toast('Logo salvo'); render(); });
   }
   else if (c === 'restaurar') restaurarBackup(arqs[0]);
+  else if (c === 'juntar') juntarBackups(arqs);
 });

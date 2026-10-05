@@ -88,6 +88,12 @@ main{max-width:880px;margin:0 auto;padding:14px}
 .linha-qtd:last-child{border-bottom:0}
 .linha-qtd .nome{flex:1;font-size:15px;min-width:0}
 .linha-qtd.zero .nome{color:var(--tinta3)}
+.copiar-bloco{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 12px;padding:9px 12px;border:1.5px dashed var(--acao);border-radius:11px;
+  background:var(--acao-suave);color:var(--acao2);font-size:14px;font-weight:600;text-align:left}
+.copiar-bloco svg{width:18px;height:18px;flex:none}
+.faixa-prazo{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;background:var(--aco);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.faixa-prazo b{font-size:17px}
+.faixa-prazo span{font-size:14.5px;opacity:.9}
 .linha-num{padding:9px 0 10px;border-bottom:1px solid #edf0f3}
 .linha-num:last-child{border-bottom:0}
 .linha-num .nome{display:block;font-size:15px;margin-bottom:6px}
