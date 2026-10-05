@@ -1,7 +1,7 @@
 /* Guarda o app no aparelho para abrir sem internet. Os dados do diário não passam por aqui.
  * Tenta a internet primeiro (para pegar a versão nova); se não responder em 3 s — sinal fraco no
  * canteiro — abre a cópia guardada e a versão nova fica para a próxima abertura. */
-const VERSAO = 'diario-obras-v3-001';
+const VERSAO = 'diario-obras-v3-002';
 const ARQUIVOS = ['./', './index.html', './manifest.json', './icone.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSAO).then(c => c.addAll(ARQUIVOS))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

@@ -6,7 +6,7 @@
  * ===================================================================== */
 /* Endereço do servidor da construtora (Google Apps Script). Com ele aqui, basta abrir o site
  * e digitar o código da empresa e o nome — ninguém precisa colar endereço. */
-const SERVIDOR_PADRAO = '';
+const SERVIDOR_PADRAO = 'https://script.google.com/macros/s/AKfycbzglsnFluY1L-iIZfe3zFaIga_aBK1u4BoTHQCCOKVGArhSY1AMbOQgfDD2VN1B7ve6/exec';
 const LOJAS_REG = ['obras', 'rdos', 'config'], LOJAS_ARQ = ['fotos', 'docs'];
 
 const Nuvem = {
