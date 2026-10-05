@@ -12,13 +12,13 @@ const LOJAS_REG = ['obras', 'rdos', 'config'], LOJAS_ARQ = ['fotos', 'docs'];
 const Nuvem = {
   cfg: null,              // { url, codigo, nome, desde }
   fila: {},               // 'loja|chave' -> { loja, chave, v }
-  rodando: false, estado: 'desligada', erro: '', ultimaOk: 0, baixando: 0,
+  rodando: false, estado: 'desligada', erro: '', ultimaOk: 0, baixando: 0, difRelogio: 0,
   _falhas: {},            // arquivos que ainda não estão no servidor (tenta de novo depois)
 
   carregar() {
     return Promise.all([Banco.ler('config', 'nuvem'), Banco.ler('config', 'fila')]).then(([c, f]) => {
       this.cfg = c || null; this.fila = f || {};
-      Banco.aoMudar = (loja, k) => this.marcar(loja, k);
+      Banco.aoMudar = (loja, k, apagado) => this.marcar(loja, k, apagado);
       if (this.ativa()) this.estado = 'ok';
     });
   },
@@ -26,16 +26,17 @@ const Nuvem = {
   pendentes() { return Object.keys(this.fila).length; },
 
   /* ---------- fila ---------- */
-  marcar(loja, chave) {
+  /* apagado = true só quando o registro foi apagado de verdade neste aparelho */
+  marcar(loja, chave, apagado) {
     if (!this.ativa()) return;
     if (loja === 'config' && chave !== 'geral') return;
     if (String(chave).indexOf('__') === 0) return;                       // testes internos
     if (LOJAS_REG.indexOf(loja) < 0 && LOJAS_ARQ.indexOf(loja) < 0) return;
     const k = loja + '|' + chave, ant = this.fila[k];
-    this.fila[k] = { loja, chave, v: (ant ? ant.v : 0) + 1 };
+    this.fila[k] = { loja, chave, v: (ant ? ant.v : 0) + 1, apagado: !!apagado };
     this._gravarFila(); this.agendar(4000); this.mostrar();
   },
-  _gravarFila() { clearTimeout(this._tf); this._tf = setTimeout(() => Banco.gravar('config', 'fila', this.fila, true), 300); },
+  _gravarFila() { return Banco.gravar('config', 'fila', this.fila, true); },     // na hora: se fechar o app, nada fica para trás
   marcarTudo() {
     return Promise.all(LOJAS_REG.concat(LOJAS_ARQ).map(l => Banco.chaves(l).then(ks => ks.forEach(k => {
       if (l === 'config' && k !== 'geral') return;
@@ -53,7 +54,9 @@ const Nuvem = {
     // corpo como texto simples: o Google aceita sem pedir permissão extra (CORS)
     return fetch(this.cfg.url, { method: 'POST', body: corpo, redirect: 'follow', signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
-      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); this.versaoServidor = j.versao || 1; return j; })
+      .then(t => { let j; try { j = JSON.parse(t); } catch (e) { throw new Error('O servidor não respondeu direito. Confira o endereço.'); } if (!j.ok) throw new Error(j.erro || 'erro no servidor'); this.versaoServidor = j.versao || 1;
+        if (j.agora) this.difRelogio = j.agora - Date.now();     // corrige relógio errado do aparelho
+        return j; })
       .finally(() => clearTimeout(tempo));
   },
 
@@ -62,8 +65,9 @@ const Nuvem = {
     if (!navigator.onLine) { this.estado = 'offline'; this.mostrar(); return Promise.resolve(); }
     this.rodando = true; this.estado = 'enviando'; this.erro = ''; this.mostrar();
     let mudou = false;
+    this._mudouAoEnviar = false;
     return this.enviar()
-      .then(() => this.receber()).then(m => { mudou = m; })
+      .then(() => this.receber()).then(m => { mudou = m || this._mudouAoEnviar; })
       .then(() => this.baixarArquivos())
       .then(() => { this.estado = this.pendentes() ? 'pendente' : 'ok'; this.ultimaOk = Date.now(); this.cfg.ultimaOk = this.ultimaOk; Banco.gravar('config', 'nuvem', this.cfg, true); })
       .catch(e => { this.estado = navigator.onLine ? 'erro' : 'offline'; this.erro = e.message || String(e); })
@@ -82,13 +86,41 @@ const Nuvem = {
     let p = Promise.resolve();
     for (let n = 0; n < regs.length; n += 10) {
       const lote = regs.slice(n, n + 10);
-      p = p.then(() => Promise.all(lote.map(i => Banco.ler(i.loja, i.chave).then(v => v === undefined || v === null
-        ? { loja: i.loja, chave: i.chave, apagado: true, atualizadoEm: new Date().toISOString() }
-        : { loja: i.loja, chave: i.chave, dados: v, atualizadoEm: v.atualizadoEm || new Date().toISOString() }))))
-        .then(dados => this.chamar('salvar', { itens: dados })).then(() => tirar(lote));
+      p = p.then(() => Promise.all(lote.map(i => {
+        if (i.apagado) return { loja: i.loja, chave: i.chave, apagado: true, atualizadoEm: horaAgora() };
+        // lê o registro; a cópia em memória pode ser mais nova (a gravação no banco espera 0,4 s) — vai a mais recente
+        return Banco.ler(i.loja, i.chave).then(v => {
+          const m = this.emMemoria(i.loja, i.chave);
+          if (m && (!v || (m.atualizadoEm || '') >= (v.atualizadoEm || ''))) v = m;
+          return v ? { loja: i.loja, chave: i.chave, dados: v, atualizadoEm: v.atualizadoEm || horaAgora() } : null;   // nunca deduz exclusão pela ausência
+        });
+      })))
+        .then(dados => dados.filter(Boolean)).then(dados => (dados.length ? this.chamar('salvar', { itens: dados }) : Promise.resolve({ itens: [] })))
+        .then(j => { tirar(lote); return this.substituidos(j.itens || []); });
     }
     arqs.forEach(i => { p = p.then(() => this.enviarArquivo(i)).then(ok => { if (ok) tirar([i]); }); });
     return p;
+  },
+  emMemoria(loja, chave) {
+    if (loja === 'rdos') return App.rdos[chave] || null;
+    if (loja === 'obras') return App.obras.find(o => o.id === chave) || null;
+    if (loja === 'config') return App.config || null;
+    return null;
+  },
+  /* o servidor recusou porque outro aparelho alterou depois: fica a versão mais nova, e avisa */
+  substituidos(res) {
+    const perdidos = res.filter(r => r.status === 'antigo' && r.atual);
+    if (!perdidos.length) return Promise.resolve();
+    return perdidos.reduce((p, r) => p.then(() => {
+      const it = r.atual;
+      if (it.apagado) return Banco.apagar(r.loja, r.chave, true).then(() => this.noApp(r.loja, r.chave, null));
+      return Banco.gravar(r.loja, r.chave, it.dados, true).then(() => this.noApp(r.loja, r.chave, it.dados));
+    }), Promise.resolve()).then(() => {
+      const dias = perdidos.filter(r => r.loja === 'rdos').map(r => br(String(r.chave).split('|')[1]));
+      toast((dias.length ? 'O diário de ' + dias.join(', ') : 'Um registro') + ' foi alterado em outro aparelho depois de você — ficou a versão mais recente' +
+        (perdidos[0].atual.por ? ' (' + perdidos[0].atual.por + ')' : ''), 7000);
+      App.redesenharDepois = true; this._mudouAoEnviar = true;
+    });
   },
   enviarArquivo(i) {
     return Banco.ler(i.loja, i.chave).then(x => {
@@ -225,6 +257,9 @@ function obterFotoBlob(id) {
     return Nuvem.baixarArquivo('fotos', id, dono.obraId, dono.data).catch(() => null);
   });
 }
+
+/* hora certa (do servidor, quando já conversou com ele) para marcar as alterações */
+const horaAgora = () => new Date(Date.now() + (Nuvem.difRelogio || 0)).toISOString();
 
 window.addEventListener('online', () => Nuvem.agendar(1000));
 window.addEventListener('offline', () => { Nuvem.estado = 'offline'; Nuvem.mostrar(); });

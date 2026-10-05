@@ -8,7 +8,7 @@
 const CODIGO = 'TROQUE-ESTE-CODIGO';
 
 const PASTA_PRINCIPAL = 'Diário de Obras (dados)';
-const VERSAO_SERVIDOR = 2;
+const VERSAO_SERVIDOR = 3;
 
 function doGet() {
   return saida({ ok: true, app: 'diario-de-obras', versao: VERSAO_SERVIDOR, msg: 'Servidor do Diário de Obras funcionando.' });
@@ -120,8 +120,12 @@ const ACOES = {
       let arq = null;
       if (reg) { try { arq = DriveApp.getFileById(reg.id); } catch (x) { arq = null; } }
       if (arq) {
-        let atual = {}; try { atual = JSON.parse(arq.getBlob().getDataAsString('UTF-8')); } catch (x) {}
-        if (atual.atualizadoEm && atual.atualizadoEm > novo.atualizadoEm) { res.push({ loja: it.loja, chave: it.chave, status: 'antigo' }); return; }
+        const txtAtual = arq.getBlob().getDataAsString('UTF-8');
+        let atual = {}; try { atual = JSON.parse(txtAtual); } catch (x) {}
+        // já existe versão mais nova (feita em outro aparelho): não sobrescreve e devolve a atual
+        if (atual.atualizadoEm && atual.atualizadoEm > novo.atualizadoEm) { res.push({ loja: it.loja, chave: it.chave, status: 'antigo', atual }); return; }
+        // vai apagar algo que tinha conteúdo: guarda uma cópia na lixeira antes (dá para recuperar à mão)
+        if (novo.apagado && atual.dados) sub(pasta, 'lixeira').createFile(nome.replace(/\.json$/, '') + '__' + Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd_HH-mm-ss') + '.json', txtAtual, MimeType.PLAIN_TEXT);
         arq.setContent(JSON.stringify(novo));
       } else arq = pasta.createFile(nome, JSON.stringify(novo), MimeType.PLAIN_TEXT);
       ind.dados[nome] = { id: arq.getId(), t: t++ };

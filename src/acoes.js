@@ -43,7 +43,7 @@ const A = {
   arquivarObra: () => { const o = obraPor(App.rota.id); o.arquivada = !o.arquivada; salvarObra(o).then(() => { toast(o.arquivada ? 'Obra arquivada' : 'Obra reativada'); ir('#/'); }); },
   excluirObra: () => {
     const o = obraPor(App.rota.id);
-    confirmar('Excluir "' + o.nome + '"?', 'Apaga a obra e TODOS os diários, fotos e documentos dela neste aparelho. Não dá para desfazer. Se tiver dúvida, faça uma cópia de segurança antes.', 'Excluir tudo', true)
+    confirmar('Excluir "' + o.nome + '"?', 'Apaga a obra e TODOS os diários, fotos e documentos dela' + (Nuvem.ativa() ? ' — em todos os aparelhos da construtora.' : ' neste aparelho.') + ' Se tiver dúvida, faça uma cópia de segurança antes.', 'Excluir tudo', true)
       .then(ok => { if (!ok) return;
         const rs = rdosDa(o.id), ps = [];
         rs.forEach(r => { (r.fotos || []).forEach(f => ps.push(Banco.apagar('fotos', f.id))); const k = chaveRdo(r.obraId, r.data); delete App.rdos[k]; ps.push(Banco.apagar('rdos', k)); });

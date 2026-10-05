@@ -91,18 +91,22 @@ function restaurarBackup(arq) {
   lerComo(arq, 'url').then(u => fetch(u)).then(r => r.json()).then(p => {
     if (!p || p.app !== 'diario-de-obras') throw new Error('Este arquivo não é uma cópia do Diário de Obras.');
     return confirmar('Restaurar a cópia de ' + br((p.geradoEm || '').slice(0, 10)) + '?',
-      'Substitui tudo que está neste aparelho por: ' + p.obras.length + ' obra(s), ' + p.rdos.length + ' diário(s) e ' + p.fotos.length + ' foto(s).',
+      'Substitui tudo que está neste aparelho por: ' + p.obras.length + ' obra(s), ' + p.rdos.length + ' diário(s) e ' + p.fotos.length + ' foto(s).' +
+      (Nuvem.ativa() ? ' Depois, o que estiver na nuvem é juntado de volta (vale sempre a versão mais recente).' : ''),
       'Restaurar', true).then(ok => {
       if (!ok) return;
       toast('Restaurando…', 3000);
+      const nuvemCfg = Nuvem.cfg ? Object.assign({}, Nuvem.cfg, { desde: 0 }) : null;
       return Promise.all(['config', 'obras', 'rdos', 'fotos', 'docs'].map(l => Banco.limpar(l))).then(() => {
         const t = [Banco.gravar('config', 'geral', p.config || {})];
+        if (nuvemCfg) { Nuvem.cfg = nuvemCfg; t.push(Banco.gravar('config', 'nuvem', nuvemCfg, true)); }
         p.obras.forEach(o => t.push(Banco.gravar('obras', o.id, o)));
         p.rdos.forEach(r => t.push(Banco.gravar('rdos', chaveRdo(r.obraId, r.data), r)));
         return Promise.all(t)
           .then(() => p.fotos.reduce((pr, f) => pr.then(() => urlParaBlob(f.url).then(b => Banco.gravar('fotos', f.id, { id: f.id, obraId: f.obraId, data: f.data, blob: b }))), Promise.resolve()))
           .then(() => p.docs.reduce((pr, d) => pr.then(() => urlParaBlob(d.url).then(b => Banco.gravar('docs', d.id, { id: d.id, nome: d.nome, tipo: d.tipo, blob: b }))), Promise.resolve()));
-      }).then(() => carregarTudo()).then(() => { toast('Cópia restaurada'); ir('#/'); });
+      }).then(() => carregarTudo()).then(() => Nuvem.ativa() ? Nuvem.marcarTudo().then(() => Nuvem.agendar(500)) : null)
+        .then(() => { toast('Cópia restaurada'); ir('#/'); });
     });
   }).catch(e => toast(e.message || 'Arquivo inválido', 5000));
 }

@@ -7,8 +7,8 @@ const chaveRdo = (obraId, data) => obraId + '|' + data;
 const obraPor = id => App.obras.find(o => o.id === id);
 const rdosDa = obraId => Object.values(App.rdos).filter(r => r.obraId === obraId);
 
-function salvarConfig() { App.config.atualizadoEm = new Date().toISOString(); return Banco.gravar('config', 'geral', App.config); }
-function salvarObra(o) { o.atualizadoEm = new Date().toISOString(); return Banco.gravar('obras', o.id, o); }
+function salvarConfig() { App.config.atualizadoEm = horaAgora(); return Banco.gravar('config', 'geral', App.config); }
+function salvarObra(o) { o.atualizadoEm = horaAgora(); return Banco.gravar('obras', o.id, o); }
 
 /* Status de um dia para o calendário */
 function statusDia(obra, iso) {

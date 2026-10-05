@@ -296,10 +296,11 @@ function corpoSecao(sec, r, o) {
 const _tGrava = {};
 function alterado(secRedesenhar) {
   const r = App.rdoAtual;
-  r.atualizadoEm = new Date().toISOString();
+  r.atualizadoEm = horaAgora();
   if (Nuvem.cfg && Nuvem.cfg.nome) r.atualizadoPor = Nuvem.cfg.nome;
   const k = chaveRdo(r.obraId, r.data);
   App.rdos[k] = JSON.parse(JSON.stringify(r));
+  Nuvem.marcar('rdos', k);                       // já entra na fila de envio, antes mesmo de gravar
   if (secRedesenhar) redesenhar(secRedesenhar);
   atualizarBarra();
   const s = $('#salvo'); if (s) s.textContent = 'Salvando…';
